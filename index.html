@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finance Manager Pro</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <!-- Auth Screen -->
+    <div id="auth-screen" class="auth-screen">
+        <div class="auth-container">
+            <div class="auth-logo">
+                <span class="logo-icon">₹</span>
+                <h1>FinanceHub</h1>
+                <p>Track lending & borrowing with ease</p>
+            </div>
+            <button id="google-signin-btn" class="google-signin-btn">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Sign in with Google
+            </button>
+            <div class="auth-divider">
+                <span>or</span>
+            </div>
+            <button id="skip-signin-btn" class="skip-signin-btn">
+                <span class="material-symbols-outlined">person_off</span>
+                Continue without sign-in
+            </button>
+            <p class="auth-note">Sign in to sync & share transactions across devices</p>
+        </div>
+    </div>
+
+    <!-- Animated Background -->
+    <div class="bg-animation">
+        <div class="bg-gradient"></div>
+        <div class="floating-shapes">
+            <div class="shape shape-1"></div>
+            <div class="shape shape-2"></div>
+            <div class="shape shape-3"></div>
+            <div class="shape shape-4"></div>
+            <div class="shape shape-5"></div>
+        </div>
+    </div>
+
+    <div class="app-container" id="app-container" style="display: none;">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">₹</span>
+                    <span class="logo-text">FinanceHub</span>
+                </div>
+            </div>
+            
+            <!-- User Profile -->
+            <div class="user-profile" id="user-profile">
+                <img id="user-avatar" src="" alt="Profile" class="user-avatar">
+                <div class="user-info">
+                    <span id="user-name" class="user-name">User</span>
+                    <span id="user-email" class="user-email">email@example.com</span>
+                </div>
+                <button id="signout-btn" class="signout-btn" title="Sign Out">
+                    <span class="material-symbols-outlined">logout</span>
+                </button>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-section="dashboard">
+                    <span class="material-symbols-outlined">dashboard</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" data-section="transactions">
+                    <span class="material-symbols-outlined">receipt_long</span>
+                    <span>Transactions</span>
+                </a>
+                <a href="#" class="nav-item" data-section="people">
+                    <span class="material-symbols-outlined">group</span>
+                    <span>People</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="balance-card">
+                    <span class="balance-label">Total Balance</span>
+                    <span id="balance" class="balance-amount">₹0.00</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Mobile Overlay -->
+        <div class="mobile-overlay" id="mobile-overlay"></div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+
+            <!-- Mobile Balance Card (visible only on mobile) -->
+            <div class="mobile-balance" id="mobile-balance" style="display: none;">
+                <div class="balance-info">
+                    <h3>Total Balance</h3>
+                    <span id="mobile-balance-value" class="balance-value">₹0.00</span>
+                </div>
+                <button class="menu-btn" id="mobile-menu-btn">
+                    <span class="material-symbols-outlined">menu</span>
+                </button>
+            </div>
+
+            <!-- Header -->
+            <header class="main-header">
+                <div class="header-left">
+                    <h1 class="page-title">Dashboard</h1>
+                    <p class="page-subtitle">Track your finances effortlessly</p>
+                </div>
+                <div class="header-right">
+                    <div class="date-display">
+                        <span class="material-symbols-outlined">calendar_today</span>
+                        <span id="current-date"></span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="dashboard-section" class="content-section active">
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card stat-lend">
+                        <div class="stat-icon">
+                            <span class="material-symbols-outlined">arrow_upward</span>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">To Receive</span>
+                            <span id="total-lent" class="stat-value">₹0.00</span>
+                        </div>
+                        <div class="stat-trend positive">
+                            <span class="material-symbols-outlined">trending_up</span>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-borrow">
+                        <div class="stat-icon">
+                            <span class="material-symbols-outlined">arrow_downward</span>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">To Pay</span>
+                            <span id="total-borrowed" class="stat-value">₹0.00</span>
+                        </div>
+                        <div class="stat-trend negative">
+                            <span class="material-symbols-outlined">trending_down</span>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-people">
+                        <div class="stat-icon">
+                            <span class="material-symbols-outlined">groups</span>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Active People</span>
+                            <span id="total-people" class="stat-value">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-pending">
+                        <div class="stat-icon">
+                            <span class="material-symbols-outlined">pending_actions</span>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-label">Pending</span>
+                            <span id="total-pending" class="stat-value">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reminders & Quick Add -->
+                <div class="dashboard-grid">
+                    <!-- Reminders Panel -->
+                    <div class="panel reminders-panel">
+                        <div class="panel-header">
+                            <h2><span class="material-symbols-outlined">notifications_active</span> Reminders</h2>
+                        </div>
+                        <div id="due-reminders" class="panel-body reminders-list">
+                            <div class="empty-state">
+                                <span class="material-symbols-outlined">check_circle</span>
+                                <p>No pending reminders</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Add Panel -->
+                    <div class="panel add-panel">
+                        <div class="panel-header">
+                            <h2><span class="material-symbols-outlined">add_circle</span> Quick Add</h2>
+                        </div>
+                        <div class="panel-body">
+                            <form id="transaction-form" class="transaction-form">
+                                <!-- Transaction Type Toggle -->
+                                <div class="type-toggle">
+                                    <button type="button" class="type-btn active" data-type="lend">
+                                        <span class="material-symbols-outlined">arrow_upward</span>
+                                        Lend
+                                    </button>
+                                    <button type="button" class="type-btn" data-type="borrow">
+                                        <span class="material-symbols-outlined">arrow_downward</span>
+                                        Borrow
+                                    </button>
+                                </div>
+                                <input type="hidden" id="transaction-type" value="lend">
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="description">Description</label>
+                                        <input type="text" id="description" placeholder="What's this for?" required>
+                                    </div>
+                                </div>
+
+                                <div class="form-row person-field">
+                                    <div class="form-group">
+                                        <label for="person">Person Name</label>
+                                        <input type="text" id="person" placeholder="Name of the person" required>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="person-email">Person's Email (optional)</label>
+                                        <input type="email" id="person-email" placeholder="email@example.com">
+                                        <small class="email-hint">If they use FinanceHub, they'll see this transaction too</small>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="amount">Amount (₹)</label>
+                                        <input type="number" id="amount" step="0.01" placeholder="0.00" required min="0.01">
+                                    </div>
+                                </div>
+
+                                <div class="form-row two-col">
+                                    <div class="form-group">
+                                        <label for="date">Date</label>
+                                        <input type="date" id="date" required>
+                                    </div>
+                                    <div class="form-group due-date-field">
+                                        <label for="due-date">Due Date</label>
+                                        <input type="date" id="due-date">
+                                    </div>
+                                </div>
+
+                                <div class="form-row reminder-field">
+                                    <div class="form-group">
+                                        <label for="reminder">Reminder</label>
+                                        <select id="reminder">
+                                            <option value="none">No reminder</option>
+                                            <option value="1">1 day before</option>
+                                            <option value="3">3 days before</option>
+                                            <option value="7">1 week before</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn-submit">
+                                    <span class="material-symbols-outlined">add</span>
+                                    Add Transaction
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Transactions -->
+                <div class="panel recent-panel">
+                    <div class="panel-header">
+                        <h2><span class="material-symbols-outlined">history</span> Recent Transactions</h2>
+                        <a href="#" class="view-all" data-section="transactions">View All →</a>
+                    </div>
+                    <div class="panel-body">
+                        <ul id="recent-transactions" class="transactions-list">
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Transactions Section -->
+            <section id="transactions-section" class="content-section">
+                <div class="panel full-panel">
+                    <div class="panel-header">
+                        <h2><span class="material-symbols-outlined">receipt_long</span> All Transactions</h2>
+                        <div class="filter-controls">
+                            <select id="filter-type" class="filter-select">
+                                <option value="all">All Types</option>
+                                <option value="regular">💰 Regular</option>
+                                <option value="lend">📤 Lent</option>
+                                <option value="borrow">📥 Borrowed</option>
+                            </select>
+                            <select id="filter-category" class="filter-select">
+                                <option value="all">All Categories</option>
+                                <option value="salary">💼 Salary</option>
+                                <option value="food">🍔 Food</option>
+                                <option value="transport">🚗 Transport</option>
+                                <option value="utilities">💡 Utilities</option>
+                                <option value="entertainment">🎮 Entertainment</option>
+                                <option value="shopping">🛒 Shopping</option>
+                                <option value="health">🏥 Health</option>
+                                <option value="lend">📤 Lend</option>
+                                <option value="borrow">📥 Borrow</option>
+                                <option value="other">📦 Other</option>
+                            </select>
+                            <button id="clear-all" class="btn-danger">
+                                <span class="material-symbols-outlined">delete</span>
+                                Clear All
+                            </button>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <ul id="transaction-list" class="transactions-list">
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- People Section -->
+            <section id="people-section" class="content-section">
+                <div class="panel full-panel">
+                    <div class="panel-header">
+                        <h2><span class="material-symbols-outlined">group</span> People</h2>
+                    </div>
+                    <div class="panel-body">
+                        <div id="people-list" class="people-grid">
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Person Modal -->
+    <div id="person-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <div id="modal-avatar" class="modal-avatar">J</div>
+                    <div>
+                        <h2 id="modal-person-name">Person Name</h2>
+                        <span id="modal-person-email" class="modal-email"></span>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closePersonModal()">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="modal-summary">
+                <div class="modal-stat">
+                    <span>Net Balance</span>
+                    <strong id="modal-net-balance">₹0.00</strong>
+                </div>
+                <div id="shared-indicator" class="shared-indicator" style="display: none;">
+                    <span class="material-symbols-outlined">link</span>
+                    <span>Shared - Both can view</span>
+                </div>
+            </div>
+            <div class="modal-body">
+                <h3>Transaction History</h3>
+                <ul id="person-transactions" class="transactions-list"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+        <div class="footer-content">
+            <span>Made with ❤️ by <a href="https://github.com/manan4747" target="_blank">Manan4747</a></span>
+            <span class="footer-divider">•</span>
+            <span>© 2026 FinanceHub</span>
+        </div>
+    </footer>
+
+    <!-- Firebase Config -->
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
