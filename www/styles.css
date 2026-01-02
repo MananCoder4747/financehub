@@ -40,20 +40,23 @@ body {
     min-height: 100vh;
     color: var(--text-primary);
     overflow-x: hidden;
+    cursor: default;
+}
+
+/* Prevent text cursor on all non-input elements */
+h1, h2, h3, h4, h5, h6, label, p, span, div, li, ul, 
+.panel-header, .stat-label, .stat-value,
+.transaction-item, .transaction-info, .transaction-due,
+.transaction-amount, .description, .meta, .transaction-icon,
+.transaction-badge, .material-symbols-outlined {
+    cursor: default !important;
+    user-select: none;
 }
 
 /* Allow text selection only on input elements */
 input, textarea, [contenteditable="true"] {
-    cursor: text;
-}
-
-select {
-    cursor: pointer;
-}
-
-button, .btn, a, .nav-item, .type-btn, .person-card, .transaction-item,
-.google-signin-btn, .skip-signin-btn {
-    cursor: pointer;
+    cursor: text !important;
+    user-select: text;
 }
 
 /* ========================================
@@ -85,8 +88,6 @@ button, .btn, a, .nav-item, .type-btn, .person-card, .transaction-item,
     border-radius: 30px;
     border: 1px solid rgba(255, 255, 255, 0.2);
     box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
-    position: relative;
-    z-index: 10000;
 }
 
 .auth-logo {
@@ -137,7 +138,6 @@ button, .btn, a, .nav-item, .type-btn, .person-card, .transaction-item,
     cursor: pointer;
     transition: var(--transition);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    pointer-events: auto;
 }
 
 .google-signin-btn:hover {
@@ -181,7 +181,6 @@ button, .btn, a, .nav-item, .type-btn, .person-card, .transaction-item,
     font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
-    pointer-events: auto;
 }
 
 .skip-signin-btn:hover {
@@ -282,7 +281,6 @@ button, .btn, a, .nav-item, .type-btn, .person-card, .transaction-item,
     bottom: 0;
     z-index: -1;
     overflow: hidden;
-    pointer-events: none;
 }
 
 .bg-gradient {
@@ -613,6 +611,14 @@ button, .btn, a, .nav-item, .type-btn, .person-card, .transaction-item,
 .stat-card:hover {
     transform: translateY(-5px);
     box-shadow: var(--shadow-lg);
+}
+
+.stat-card.clickable {
+    cursor: pointer;
+}
+
+.stat-card.clickable:active {
+    transform: translateY(-2px);
 }
 
 .stat-icon {
@@ -1000,6 +1006,12 @@ button, .btn, a, .nav-item, .type-btn, .person-card, .transaction-item,
     gap: 15px;
 }
 
+.add-person-form .email-hint {
+    color: var(--text-light);
+    font-size: 0.8rem;
+    margin-top: -10px;
+}
+
 .btn-add-person {
     display: flex;
     align-items: center;
@@ -1185,6 +1197,17 @@ button, .btn, a, .nav-item, .type-btn, .person-card, .transaction-item,
     color: var(--secondary);
 }
 
+.badge-shared {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+}
+
+.shared-view-only {
+    font-size: 1.2rem;
+    opacity: 0.6;
+    padding: 8px;
+}
+
 .transaction-due {
     font-size: 0.8rem;
     color: var(--warning);
@@ -1299,6 +1322,54 @@ button, .btn, a, .nav-item, .type-btn, .person-card, .transaction-item,
 .btn-danger:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+/* ========================================
+   Export Buttons
+   ======================================== */
+
+.export-buttons {
+    display: flex;
+    gap: 12px;
+    padding: 0 25px 20px;
+}
+
+.btn-export {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-excel {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.btn-excel:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-pdf {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+}
+
+.btn-pdf:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.btn-export .material-symbols-outlined {
+    font-size: 1.1rem;
 }
 
 /* ========================================
@@ -1581,6 +1652,268 @@ button, .btn, a, .nav-item, .type-btn, .person-card, .transaction-item,
     font-size: 1.1rem;
 }
 
+/* Details Modal Styles */
+.details-modal-content {
+    max-width: 600px;
+}
+
+.details-modal-content .modal-title {
+    gap: 12px;
+}
+
+.details-modal-content .modal-title .material-symbols-outlined {
+    font-size: 1.8rem;
+}
+
+.details-modal-content .modal-body {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.details-modal-content .transactions-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.details-person-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px;
+    background: var(--bg-primary);
+    border-radius: var(--radius);
+    margin-bottom: 10px;
+    transition: var(--transition);
+}
+
+.details-person-item:hover {
+    background: var(--bg-secondary);
+}
+
+.details-person-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.details-person-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: white;
+}
+
+.details-person-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.details-person-count {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.details-person-amount {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.details-person-amount.positive {
+    color: var(--success);
+}
+
+.details-person-amount.negative {
+    color: var(--danger);
+}
+
+.details-person-count {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.details-person-item:hover {
+    background: rgba(139, 92, 246, 0.1);
+}
+
+#details-transactions-list .empty-state {
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#details-transactions-list .empty-state .material-symbols-outlined {
+    font-size: 3rem;
+    color: var(--success);
+}
+
+/* Edit Modal Styles */
+.edit-modal-content {
+    max-width: 500px;
+}
+
+.edit-modal-content .modal-title {
+    gap: 12px;
+}
+
+.edit-modal-content .modal-title .material-symbols-outlined {
+    font-size: 1.8rem;
+}
+
+#edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+#edit-form .form-group {
+    margin-bottom: 0;
+}
+
+#edit-form input,
+#edit-form select {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 1rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    transition: var(--transition);
+}
+
+#edit-form input:focus,
+#edit-form select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+#edit-form label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 10px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+}
+
+.btn-cancel {
+    flex: 1;
+    padding: 14px 20px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--text-secondary);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-cancel:hover {
+    background: var(--bg-primary);
+    border-color: var(--text-secondary);
+}
+
+.btn-save {
+    flex: 2;
+    padding: 14px 20px;
+    border: none;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
+.btn-save .material-symbols-outlined {
+    font-size: 1.2rem;
+}
+
+/* Edit button in transaction actions */
+.edit-btn {
+    padding: 8px 12px;
+    background: rgba(59, 130, 246, 0.1);
+    border: none;
+    color: var(--primary);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.edit-btn .material-symbols-outlined {
+    font-size: 1.25rem;
+}
+
+.edit-btn:hover {
+    background: var(--primary);
+    color: white;
+    transform: scale(1.05);
+}
+
+/* Make all action button icons same size */
+.transaction-actions .material-symbols-outlined {
+    font-size: 1.25rem !important;
+}
+
+/* Update confirmation toast */
+.toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    padding: 15px 30px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    z-index: 10000;
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+.toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.toast .material-symbols-outlined {
+    font-size: 1.3rem;
+}
+
 .email-hint {
     display: block;
     margin-top: 5px;
@@ -1796,27 +2129,36 @@ button, .btn, a, .nav-item, .type-btn, .person-card, .transaction-item,
     }
     
     .stat-card {
-        padding: 15px;
+        padding: 16px;
         flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        text-align: center;
+        min-height: 120px;
     }
     
     .stat-icon {
-        width: 40px;
-        height: 40px;
+        width: 45px;
+        height: 45px;
     }
     
     .stat-icon .material-symbols-outlined {
-        font-size: 1.2rem;
+        font-size: 1.3rem;
+    }
+    
+    .stat-content {
+        text-align: center;
     }
     
     .stat-value {
-        font-size: 1.2rem;
+        font-size: 1.3rem;
+        font-weight: 700;
     }
     
     .stat-label {
-        font-size: 0.75rem;
+        font-size: 0.8rem;
+        margin-top: 4px;
     }
     
     .stat-trend {

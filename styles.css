@@ -2129,27 +2129,36 @@ input, textarea, [contenteditable="true"] {
     }
     
     .stat-card {
-        padding: 15px;
+        padding: 16px;
         flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        text-align: center;
+        min-height: 120px;
     }
     
     .stat-icon {
-        width: 40px;
-        height: 40px;
+        width: 45px;
+        height: 45px;
     }
     
     .stat-icon .material-symbols-outlined {
-        font-size: 1.2rem;
+        font-size: 1.3rem;
+    }
+    
+    .stat-content {
+        text-align: center;
     }
     
     .stat-value {
-        font-size: 1.2rem;
+        font-size: 1.3rem;
+        font-weight: 700;
     }
     
     .stat-label {
-        font-size: 0.75rem;
+        font-size: 0.8rem;
+        margin-top: 4px;
     }
     
     .stat-trend {

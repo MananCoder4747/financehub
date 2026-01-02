@@ -21,9 +21,7 @@ const recentTransactionsList = document.getElementById('recent-transactions');
 const form = document.getElementById('transaction-form');
 const descriptionInput = document.getElementById('description');
 const amountInput = document.getElementById('amount');
-const categoryInput = document.getElementById('category');
 const dateInput = document.getElementById('date');
-const filterCategory = document.getElementById('filter-category');
 const filterType = document.getElementById('filter-type');
 const clearAllBtn = document.getElementById('clear-all');
 
@@ -101,11 +99,17 @@ let savedPeople = JSON.parse(localStorage.getItem('savedPeople')) || [];
 // Shared transactions from Firebase
 let sharedTransactions = [];
 
-// Set default date to today in DD/MM/YYYY format
-function setTodayDate() {
-    const today = new Date();
-    dateInput.value = formatDateToDDMMYYYY(today);
-}
+// Reminder date input
+const reminderDateField = document.getElementById('reminder-date-field');
+const reminderDateInput = document.getElementById('reminder-date');
+
+// Export buttons
+const exportExcelBtn = document.getElementById('export-excel');
+const exportPdfBtn = document.getElementById('export-pdf');
+
+// ========================================
+// Date Format Helpers (DD/MM/YYYY)
+// ========================================
 
 // Format date to DD/MM/YYYY
 function formatDateToDDMMYYYY(date) {
@@ -116,7 +120,7 @@ function formatDateToDDMMYYYY(date) {
     return `${day}/${month}/${year}`;
 }
 
-// Parse DD/MM/YYYY to Date object
+// Parse DD/MM/YYYY to ISO format (YYYY-MM-DD)
 function parseDDMMYYYY(dateStr) {
     if (!dateStr) return null;
     const parts = dateStr.split('/');
@@ -124,22 +128,11 @@ function parseDDMMYYYY(dateStr) {
     const day = parseInt(parts[0], 10);
     const month = parseInt(parts[1], 10) - 1;
     const year = parseInt(parts[2], 10);
-    const date = new Date(year, month, day);
-    // Validate the date
-    if (date.getDate() !== day || date.getMonth() !== month || date.getFullYear() !== year) {
-        return null;
-    }
-    return date;
+    if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
+    return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-// Convert DD/MM/YYYY to YYYY-MM-DD for storage
-function ddmmyyyyToISO(dateStr) {
-    const date = parseDDMMYYYY(dateStr);
-    if (!date) return null;
-    return date.toISOString().split('T')[0];
-}
-
-// Convert YYYY-MM-DD to DD/MM/YYYY for display
+// Convert ISO to DD/MM/YYYY
 function isoToDDMMYYYY(isoStr) {
     if (!isoStr) return '';
     const parts = isoStr.split('-');
@@ -149,6 +142,7 @@ function isoToDDMMYYYY(isoStr) {
 
 // Auto-format date input as user types
 function setupDateInput(input) {
+    if (!input) return;
     input.addEventListener('input', (e) => {
         let value = e.target.value.replace(/\D/g, '');
         if (value.length >= 2) {
@@ -159,6 +153,181 @@ function setupDateInput(input) {
         }
         e.target.value = value;
     });
+}
+
+// Set today's date in DD/MM/YYYY format
+function setTodayDate() {
+    if (dateInput) dateInput.value = formatDateToDDMMYYYY(new Date());
+}
+
+// Setup all date inputs with auto-formatting
+function setupDateInputs() {
+    setupDateInput(dateInput);
+    setupDateInput(dueDateInput);
+    setupDateInput(reminderDateInput);
+}
+
+// Setup reminder toggle for custom date
+function setupReminderToggle() {
+    if (!reminderInput || !reminderDateField) return;
+    
+    reminderInput.addEventListener('change', () => {
+        if (reminderInput.value === 'custom') {
+            reminderDateField.style.display = 'block';
+        } else {
+            reminderDateField.style.display = 'none';
+            if (reminderDateInput) reminderDateInput.value = '';
+        }
+    });
+}
+
+// Setup export buttons
+function setupExportButtons() {
+    if (exportExcelBtn) {
+        exportExcelBtn.addEventListener('click', exportToExcel);
+    }
+    if (exportPdfBtn) {
+        exportPdfBtn.addEventListener('click', exportToPDF);
+    }
+}
+
+// Export transactions to Excel (CSV)
+function exportToExcel() {
+    const allTransactions = [...transactions, ...sharedTransactions];
+    if (allTransactions.length === 0) {
+        alert('No transactions to export!');
+        return;
+    }
+    
+    // CSV headers
+    let csv = 'Date,Description,Type,Category,Amount,Person,Person Email,Due Date,Status\n';
+    
+    // Add each transaction
+    allTransactions.forEach(t => {
+        const date = isoToDDMMYYYY(t.date) || '';
+        const description = `"${(t.description || '').replace(/"/g, '""')}"`;
+        const type = t.type || '';
+        const category = t.category || '';
+        const amount = t.amount || 0;
+        const person = `"${(t.person || '').replace(/"/g, '""')}"`;
+        const personEmail = `"${(t.personEmail || '').replace(/"/g, '""')}"`;
+        const dueDate = isoToDDMMYYYY(t.dueDate) || '';
+        const status = t.settled ? 'Settled' : 'Pending';
+        
+        csv += `${date},${description},${type},${category},${amount},${person},${personEmail},${dueDate},${status}\n`;
+    });
+    
+    // Create and download file
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `transactions_${formatDateToDDMMYYYY(new Date()).replace(/\//g, '-')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Export transactions to PDF
+function exportToPDF() {
+    const allTransactions = [...transactions, ...sharedTransactions];
+    if (allTransactions.length === 0) {
+        alert('No transactions to export!');
+        return;
+    }
+    
+    // Create printable HTML
+    let html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Transactions Report</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                h1 { color: #6366f1; text-align: center; }
+                .date { text-align: center; color: #666; margin-bottom: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 12px; }
+                th { background: #6366f1; color: white; }
+                tr:nth-child(even) { background: #f9f9f9; }
+                .income { color: #10b981; }
+                .expense { color: #ef4444; }
+                .lend { color: #3b82f6; }
+                .borrow { color: #f59e0b; }
+                .summary { margin-top: 20px; padding: 15px; background: #f0f0f0; border-radius: 8px; }
+            </style>
+        </head>
+        <body>
+            <h1>💰 Finance Manager Pro - Transactions Report</h1>
+            <p class="date">Generated on: ${formatDateToDDMMYYYY(new Date())}</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Type</th>
+                        <th>Category</th>
+                        <th>Amount</th>
+                        <th>Person</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    let totalIncome = 0, totalExpense = 0, totalLent = 0, totalBorrowed = 0;
+    
+    allTransactions.forEach(t => {
+        const typeClass = t.type || 'other';
+        const date = isoToDDMMYYYY(t.date) || '-';
+        const dueDate = isoToDDMMYYYY(t.dueDate) || '-';
+        const status = t.settled ? '✓ Settled' : '⏳ Pending';
+        
+        // Calculate totals
+        if (t.type === 'income') totalIncome += t.amount;
+        else if (t.type === 'expense') totalExpense += t.amount;
+        else if (t.type === 'lend') totalLent += t.amount;
+        else if (t.type === 'borrow') totalBorrowed += t.amount;
+        
+        html += `
+            <tr>
+                <td>${date}</td>
+                <td>${t.description || '-'}</td>
+                <td class="${typeClass}">${(t.type || '-').toUpperCase()}</td>
+                <td>${t.category || '-'}</td>
+                <td class="${typeClass}">₹${t.amount.toLocaleString('en-IN')}</td>
+                <td>${t.person || '-'}</td>
+                <td>${dueDate}</td>
+                <td>${status}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+            <div class="summary">
+                <h3>Summary</h3>
+                <p><strong>Total Income:</strong> <span class="income">₹${totalIncome.toLocaleString('en-IN')}</span></p>
+                <p><strong>Total Expense:</strong> <span class="expense">₹${totalExpense.toLocaleString('en-IN')}</span></p>
+                <p><strong>Total Lent:</strong> <span class="lend">₹${totalLent.toLocaleString('en-IN')}</span></p>
+                <p><strong>Total Borrowed:</strong> <span class="borrow">₹${totalBorrowed.toLocaleString('en-IN')}</span></p>
+                <p><strong>Net Balance:</strong> ₹${(totalIncome - totalExpense + totalBorrowed - totalLent).toLocaleString('en-IN')}</p>
+            </div>
+        </body>
+        </html>
+    `;
+    
+    // Open print dialog
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+        printWindow.print();
+    }, 250);
 }
 
 // Display current date
@@ -203,7 +372,6 @@ async function loadPeopleFromFirebase() {
 }
 
 function addPerson(name, email = '') {
-    // Check if person already exists
     const exists = savedPeople.find(p => p.name.toLowerCase() === name.toLowerCase());
     if (exists) {
         alert('This person already exists!');
@@ -220,27 +388,16 @@ function addPerson(name, email = '') {
     savedPeople.push(person);
     savePeopleToStorage();
     updatePersonSelect();
-    updatePeopleList();
+    renderPeopleList();
     return true;
 }
 
 function deletePerson(personId) {
-    // Check if person has transactions
-    const hasTransactions = transactions.some(t => {
-        const person = savedPeople.find(p => p.id === personId);
-        return person && t.person && t.person.toLowerCase() === person.name.toLowerCase();
-    });
-    
-    if (hasTransactions) {
-        if (!confirm('This person has transactions. Delete anyway? (Transactions will remain)')) {
-            return;
-        }
-    }
-    
+    if (!confirm('Delete this person?')) return;
     savedPeople = savedPeople.filter(p => p.id !== personId);
     savePeopleToStorage();
     updatePersonSelect();
-    updatePeopleList();
+    renderPeopleList();
 }
 
 function updatePersonSelect() {
@@ -255,7 +412,6 @@ function updatePersonSelect() {
         personSelect.appendChild(option);
     });
     
-    // Restore selected value if it exists
     if (currentValue && savedPeople.find(p => p.name === currentValue)) {
         personSelect.value = currentValue;
     }
@@ -373,10 +529,11 @@ async function loadTransactionsFromFirebase() {
 
 // Load shared transactions (where current user is the person)
 async function loadSharedTransactions() {
-    if (!currentUser) return;
+    if (!currentUser || !isFirebaseConfigured()) return;
     
     try {
-        const snapshot = await db.collectionGroup('transactions')
+        // Query the sharedTransactions collection where this user's email is the personEmail
+        const snapshot = await db.collection('sharedTransactions')
             .where('personEmail', '==', currentUser.email.toLowerCase())
             .get();
         
@@ -385,6 +542,8 @@ async function loadSharedTransactions() {
             ...doc.data(),
             isShared: true
         }));
+        
+        console.log('Loaded shared transactions:', sharedTransactions.length);
     } catch (error) {
         console.error('Error loading shared transactions:', error);
         sharedTransactions = [];
@@ -396,12 +555,22 @@ async function saveTransactionToFirebase(transaction) {
     if (!currentUser || !isFirebaseConfigured()) return;
     
     try {
-        await db.collection('users').doc(currentUser.uid).collection('transactions').doc(transaction.id).set({
+        const transactionData = {
             ...transaction,
             ownerEmail: currentUser.email.toLowerCase(),
             ownerName: currentUser.displayName,
+            ownerUid: currentUser.uid,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        };
+        
+        // Save to user's transactions
+        await db.collection('users').doc(currentUser.uid).collection('transactions').doc(transaction.id).set(transactionData);
+        
+        // If person has email, also save to shared transactions collection
+        if (transaction.personEmail) {
+            await db.collection('sharedTransactions').doc(transaction.id).set(transactionData);
+            console.log('Shared transaction saved for:', transaction.personEmail);
+        }
     } catch (error) {
         console.error('Error saving transaction:', error);
     }
@@ -412,7 +581,11 @@ async function deleteTransactionFromFirebase(transactionId) {
     if (!currentUser || !isFirebaseConfigured()) return;
     
     try {
+        // Delete from user's transactions
         await db.collection('users').doc(currentUser.uid).collection('transactions').doc(transactionId).delete();
+        
+        // Also delete from shared transactions
+        await db.collection('sharedTransactions').doc(transactionId).delete();
     } catch (error) {
         console.error('Error deleting transaction:', error);
     }
@@ -423,7 +596,21 @@ async function updateTransactionInFirebase(transaction) {
     if (!currentUser || !isFirebaseConfigured()) return;
     
     try {
-        await db.collection('users').doc(currentUser.uid).collection('transactions').doc(transaction.id).update(transaction);
+        const transactionData = {
+            ...transaction,
+            ownerEmail: currentUser.email.toLowerCase(),
+            ownerName: currentUser.displayName,
+            ownerUid: currentUser.uid,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        // Update in user's transactions
+        await db.collection('users').doc(currentUser.uid).collection('transactions').doc(transaction.id).set(transactionData, { merge: true });
+        
+        // Update in shared transactions if person has email
+        if (transaction.personEmail) {
+            await db.collection('sharedTransactions').doc(transaction.id).set(transactionData, { merge: true });
+        }
     } catch (error) {
         console.error('Error updating transaction:', error);
     }
@@ -446,6 +633,8 @@ function init() {
     updatePersonSelect();
     setupDateInputs();
     setTodayDate();
+    setupReminderToggle();
+    setupExportButtons();
     updateUI();
     checkReminders();
     setupTypeToggle();
@@ -453,13 +642,6 @@ function init() {
     setupMobileMenu();
     handleResize();
     window.addEventListener('resize', handleResize);
-}
-
-// Setup date inputs for auto-formatting
-function setupDateInputs() {
-    setupDateInput(dateInput);
-    setupDateInput(dueDateInput);
-    setupDateInput(reminderInput);
 }
 
 // Handle window resize for mobile
@@ -586,19 +768,15 @@ function updateStats() {
     totalPendingEl.textContent = pending;
 }
 
-// Get filtered transactions
+// Get filtered transactions (includes shared)
 function getFilteredTransactions() {
-    let filtered = transactions;
+    // Combine own and shared transactions
+    let filtered = [...transactions, ...sharedTransactions];
     
     const typeFilter = filterType.value;
-    const categoryFilter = filterCategory.value;
     
     if (typeFilter !== 'all') {
         filtered = filtered.filter(t => t.type === typeFilter);
-    }
-    
-    if (categoryFilter !== 'all') {
-        filtered = filtered.filter(t => t.category === categoryFilter);
     }
     
     return filtered;
@@ -606,29 +784,60 @@ function getFilteredTransactions() {
 
 // Update balance
 function updateBalance() {
-    const regularTransactions = transactions.filter(t => t.type === 'regular');
-    const total = regularTransactions.reduce((acc, t) => acc + t.amount, 0);
+    // Calculate net balance from own transactions
+    const ownLendTransactions = transactions.filter(t => t.type === 'lend' && !t.settled);
+    const ownBorrowTransactions = transactions.filter(t => t.type === 'borrow' && !t.settled);
     
-    const formattedBalance = formatMoney(total);
-    const balanceColor = total >= 0 ? '#10b981' : '#ef4444';
+    const ownTotalLent = ownLendTransactions.reduce((acc, t) => acc + t.amount, 0);
+    const ownTotalBorrowed = ownBorrowTransactions.reduce((acc, t) => acc + t.amount, 0);
     
-    balanceEl.textContent = formattedBalance;
+    // Calculate from shared transactions (reversed perspective)
+    // If someone lent TO me (their type='lend'), I OWE them (negative for me)
+    // If someone borrowed FROM me (their type='borrow'), they OWE me (positive for me)
+    const sharedLendTransactions = sharedTransactions.filter(t => t.type === 'lend' && !t.settled);
+    const sharedBorrowTransactions = sharedTransactions.filter(t => t.type === 'borrow' && !t.settled);
+    
+    const sharedIOwe = sharedLendTransactions.reduce((acc, t) => acc + t.amount, 0); // They lent to me, I owe
+    const sharedTheyOwe = sharedBorrowTransactions.reduce((acc, t) => acc + t.amount, 0); // They borrowed from me, they owe
+    
+    // Net balance: (what others owe me) - (what I owe others)
+    const netBalance = (ownTotalLent + sharedTheyOwe) - (ownTotalBorrowed + sharedIOwe);
+    
+    const formattedBalance = formatMoney(Math.abs(netBalance));
+    const balanceColor = netBalance >= 0 ? '#10b981' : '#ef4444';
+    const prefix = netBalance >= 0 ? '+' : '-';
+    
+    balanceEl.textContent = (netBalance !== 0 ? prefix : '') + formattedBalance;
     balanceEl.style.color = balanceColor;
     
     // Update mobile balance too
     if (mobileBalanceValue) {
-        mobileBalanceValue.textContent = formattedBalance;
-        mobileBalanceValue.style.color = total >= 0 ? '#10b981' : '#ef4444';
+        mobileBalanceValue.textContent = (netBalance !== 0 ? prefix : '') + formattedBalance;
+        mobileBalanceValue.style.color = balanceColor;
     }
 }
 
 // Update borrow/lend summary
 function updateBorrowLendSummary() {
-    const lendTransactions = transactions.filter(t => t.type === 'lend' && !t.settled);
-    const borrowTransactions = transactions.filter(t => t.type === 'borrow' && !t.settled);
+    // Own transactions
+    const ownLendTransactions = transactions.filter(t => t.type === 'lend' && !t.settled);
+    const ownBorrowTransactions = transactions.filter(t => t.type === 'borrow' && !t.settled);
     
-    const totalLent = lendTransactions.reduce((acc, t) => acc + t.amount, 0);
-    const totalBorrowed = borrowTransactions.reduce((acc, t) => acc + t.amount, 0);
+    const ownTotalLent = ownLendTransactions.reduce((acc, t) => acc + t.amount, 0);
+    const ownTotalBorrowed = ownBorrowTransactions.reduce((acc, t) => acc + t.amount, 0);
+    
+    // Shared transactions (reversed perspective)
+    // Their 'lend' = I need to pay them back (my borrow)
+    // Their 'borrow' = They need to pay me back (my lend)
+    const sharedLendTransactions = sharedTransactions.filter(t => t.type === 'lend' && !t.settled);
+    const sharedBorrowTransactions = sharedTransactions.filter(t => t.type === 'borrow' && !t.settled);
+    
+    const sharedAsMyBorrowed = sharedLendTransactions.reduce((acc, t) => acc + t.amount, 0);
+    const sharedAsMyLent = sharedBorrowTransactions.reduce((acc, t) => acc + t.amount, 0);
+    
+    // Total from both sources
+    const totalLent = ownTotalLent + sharedAsMyLent;
+    const totalBorrowed = ownTotalBorrowed + sharedAsMyBorrowed;
     
     totalLentEl.textContent = formatMoney(totalLent);
     totalBorrowedEl.textContent = formatMoney(totalBorrowed);
@@ -639,60 +848,51 @@ function checkReminders() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const pendingTransactions = transactions.filter(t => 
-        (t.type === 'lend' || t.type === 'borrow') && 
-        !t.settled && 
-        (t.dueDate || t.reminderDate)
-    );
+    // Combine own and shared transactions for reminders
+    const allTransactionsForReminders = [
+        ...transactions.filter(t => (t.type === 'lend' || t.type === 'borrow') && !t.settled && t.dueDate),
+        ...sharedTransactions.filter(t => (t.type === 'lend' || t.type === 'borrow') && !t.settled && t.dueDate)
+    ];
     
     const reminders = [];
     
-    pendingTransactions.forEach(t => {
-        // Check reminder date first
-        if (t.reminderDate) {
-            const reminderDate = new Date(t.reminderDate);
+    allTransactionsForReminders.forEach(t => {
+        const dueDate = new Date(t.dueDate);
+        dueDate.setHours(0, 0, 0, 0);
+        const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+        
+        // Handle custom reminder date
+        let shouldRemind = false;
+        if (t.reminder === 'custom' && t.customReminderDate) {
+            const reminderDate = new Date(t.customReminderDate);
             reminderDate.setHours(0, 0, 0, 0);
-            const daysUntilReminder = Math.ceil((reminderDate - today) / (1000 * 60 * 60 * 24));
-            
-            if (daysUntilReminder <= 0) {
-                reminders.push({
-                    transaction: t,
-                    daysUntilDue: daysUntilReminder,
-                    type: daysUntilReminder < 0 ? 'danger' : 'warning',
-                    message: daysUntilReminder === 0 ? 'Reminder today!' : `Reminder ${Math.abs(daysUntilReminder)} day(s) ago`
-                });
-                return;
-            }
+            shouldRemind = today >= reminderDate;
+        } else {
+            const reminderDays = parseInt(t.reminder) || 0;
+            shouldRemind = reminderDays > 0 && daysUntilDue <= reminderDays;
         }
         
-        // Check due date
-        if (t.dueDate) {
-            const dueDate = new Date(t.dueDate);
-            dueDate.setHours(0, 0, 0, 0);
-            const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
-            
-            if (daysUntilDue < 0) {
-                reminders.push({
-                    transaction: t,
-                    daysUntilDue,
-                    type: 'danger',
-                    message: `Overdue by ${Math.abs(daysUntilDue)} day(s)`
-                });
-            } else if (daysUntilDue === 0) {
-                reminders.push({
-                    transaction: t,
-                    daysUntilDue,
-                    type: 'danger',
-                    message: 'Due today!'
-                });
-            } else if (daysUntilDue <= 7) {
-                reminders.push({
-                    transaction: t,
-                    daysUntilDue,
-                    type: 'warning',
-                    message: `Due in ${daysUntilDue} day(s)`
-                });
-            }
+        if (daysUntilDue < 0) {
+            reminders.push({
+                transaction: t,
+                daysUntilDue,
+                type: 'danger',
+                message: `Overdue by ${Math.abs(daysUntilDue)} day(s)`
+            });
+        } else if (daysUntilDue === 0) {
+            reminders.push({
+                transaction: t,
+                daysUntilDue,
+                type: 'danger',
+                message: 'Due today!'
+            });
+        } else if (shouldRemind) {
+            reminders.push({
+                transaction: t,
+                daysUntilDue,
+                type: 'warning',
+                message: `Due in ${daysUntilDue} day(s)`
+            });
         }
     });
     
@@ -812,14 +1012,13 @@ function renderPeopleList() {
         peopleListEl.innerHTML = `
             <div class="people-empty">
                 <span class="material-symbols-outlined">group_off</span>
-                <p>No people added yet. Add someone to get started!</p>
+                <p>No people added yet. Add someone above to get started!</p>
             </div>
         `;
         return;
     }
     
     peopleListEl.innerHTML = allPeople.map((person, index) => {
-        // Find balance from transactions
         const txPerson = transactionPeople.find(tp => tp.name.toLowerCase() === person.name.toLowerCase());
         const balance = txPerson ? txPerson.balance : 0;
         const hasShared = txPerson ? txPerson.hasShared : false;
@@ -884,6 +1083,207 @@ function closePersonModal() {
     personModal.classList.remove('active');
 }
 
+// ========================================
+// Details Modal Functions
+// ========================================
+
+const detailsModal = document.getElementById('details-modal');
+const detailsModalIcon = document.getElementById('details-modal-icon');
+const detailsModalTitle = document.getElementById('details-modal-title');
+const detailsModalLabel = document.getElementById('details-modal-label');
+const detailsModalTotal = document.getElementById('details-modal-total');
+const detailsTransactionsList = document.getElementById('details-transactions-list');
+
+// Open To Receive modal (money to collect from others)
+function openReceiveModal() {
+    // Get all lend transactions (own) + borrow transactions from shared (they borrowed from me)
+    const ownLend = transactions.filter(t => t.type === 'lend' && !t.settled);
+    const sharedBorrow = sharedTransactions.filter(t => t.type === 'borrow' && !t.settled);
+    
+    // Group by person
+    const peopleToReceive = {};
+    
+    ownLend.forEach(t => {
+        const name = t.person.toLowerCase();
+        if (!peopleToReceive[name]) {
+            peopleToReceive[name] = { name: t.person, amount: 0, count: 0 };
+        }
+        peopleToReceive[name].amount += t.amount;
+        peopleToReceive[name].count++;
+    });
+    
+    sharedBorrow.forEach(t => {
+        const name = (t.ownerName || 'Unknown').toLowerCase();
+        if (!peopleToReceive[name]) {
+            peopleToReceive[name] = { name: t.ownerName || 'Unknown', amount: 0, count: 0 };
+        }
+        peopleToReceive[name].amount += t.amount;
+        peopleToReceive[name].count++;
+    });
+    
+    const total = Object.values(peopleToReceive).reduce((acc, p) => acc + p.amount, 0);
+    
+    detailsModalIcon.textContent = 'arrow_upward';
+    detailsModalTitle.textContent = 'To Receive';
+    detailsModalLabel.textContent = 'Total to Collect';
+    detailsModalTotal.textContent = formatMoney(total);
+    detailsModalTotal.style.color = '#10b981';
+    
+    renderDetailsList(peopleToReceive, 'positive');
+    detailsModal.classList.add('active');
+}
+
+// Open To Pay modal (money to pay to others)
+function openPayModal() {
+    // Get all borrow transactions (own) + lend transactions from shared (they lent to me)
+    const ownBorrow = transactions.filter(t => t.type === 'borrow' && !t.settled);
+    const sharedLend = sharedTransactions.filter(t => t.type === 'lend' && !t.settled);
+    
+    // Group by person
+    const peopleToPay = {};
+    
+    ownBorrow.forEach(t => {
+        const name = t.person.toLowerCase();
+        if (!peopleToPay[name]) {
+            peopleToPay[name] = { name: t.person, amount: 0, count: 0 };
+        }
+        peopleToPay[name].amount += t.amount;
+        peopleToPay[name].count++;
+    });
+    
+    sharedLend.forEach(t => {
+        const name = (t.ownerName || 'Unknown').toLowerCase();
+        if (!peopleToPay[name]) {
+            peopleToPay[name] = { name: t.ownerName || 'Unknown', amount: 0, count: 0 };
+        }
+        peopleToPay[name].amount += t.amount;
+        peopleToPay[name].count++;
+    });
+    
+    const total = Object.values(peopleToPay).reduce((acc, p) => acc + p.amount, 0);
+    
+    detailsModalIcon.textContent = 'arrow_downward';
+    detailsModalTitle.textContent = 'To Pay';
+    detailsModalLabel.textContent = 'Total to Pay';
+    detailsModalTotal.textContent = formatMoney(total);
+    detailsModalTotal.style.color = '#ef4444';
+    
+    renderDetailsList(peopleToPay, 'negative');
+    detailsModal.classList.add('active');
+}
+
+// Open Pending modal (all pending transactions)
+function openPendingModal() {
+    // Get all pending transactions
+    const allPending = [
+        ...transactions.filter(t => !t.settled),
+        ...sharedTransactions.filter(t => !t.settled)
+    ];
+    
+    // Group by person
+    const pendingByPerson = {};
+    
+    allPending.forEach(t => {
+        let name, displayName;
+        if (t.isShared) {
+            name = (t.ownerName || 'Unknown').toLowerCase();
+            displayName = t.ownerName || 'Unknown';
+        } else {
+            name = t.person.toLowerCase();
+            displayName = t.person;
+        }
+        
+        if (!pendingByPerson[name]) {
+            pendingByPerson[name] = { name: displayName, amount: 0, count: 0 };
+        }
+        pendingByPerson[name].count++;
+    });
+    
+    const totalCount = allPending.length;
+    
+    detailsModalIcon.textContent = 'pending_actions';
+    detailsModalTitle.textContent = 'Pending Transactions';
+    detailsModalLabel.textContent = 'Total Pending';
+    detailsModalTotal.textContent = totalCount + ' transaction' + (totalCount !== 1 ? 's' : '');
+    detailsModalTotal.style.color = '#f59e0b';
+    
+    renderPendingList(pendingByPerson);
+    detailsModal.classList.add('active');
+}
+
+// Render details list (for receive/pay)
+function renderDetailsList(people, amountClass) {
+    const peopleArray = Object.values(people).sort((a, b) => b.amount - a.amount);
+    
+    if (peopleArray.length === 0) {
+        detailsTransactionsList.innerHTML = `
+            <li class="empty-state">
+                <span class="material-symbols-outlined">check_circle</span>
+                <p>No pending amounts</p>
+            </li>
+        `;
+        return;
+    }
+    
+    detailsTransactionsList.innerHTML = peopleArray.map((person, index) => `
+        <li class="details-person-item" onclick="closeDetailsModal(); openPersonModal('${escapeHtml(person.name)}')">
+            <div class="details-person-info">
+                <div class="details-person-avatar" style="background: linear-gradient(135deg, ${avatarColors[index % avatarColors.length]} 0%, ${avatarColors[(index + 1) % avatarColors.length]} 100%);">
+                    ${person.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                    <div class="details-person-name">${escapeHtml(person.name)}</div>
+                    <div class="details-person-count">${person.count} transaction${person.count !== 1 ? 's' : ''}</div>
+                </div>
+            </div>
+            <span class="details-person-amount ${amountClass}">${formatMoney(person.amount)}</span>
+        </li>
+    `).join('');
+}
+
+// Render pending list
+function renderPendingList(people) {
+    const peopleArray = Object.values(people).sort((a, b) => b.count - a.count);
+    
+    if (peopleArray.length === 0) {
+        detailsTransactionsList.innerHTML = `
+            <li class="empty-state">
+                <span class="material-symbols-outlined">check_circle</span>
+                <p>No pending transactions</p>
+            </li>
+        `;
+        return;
+    }
+    
+    detailsTransactionsList.innerHTML = peopleArray.map((person, index) => `
+        <li class="details-person-item" onclick="closeDetailsModal(); openPersonModal('${escapeHtml(person.name)}')">
+            <div class="details-person-info">
+                <div class="details-person-avatar" style="background: linear-gradient(135deg, ${avatarColors[index % avatarColors.length]} 0%, ${avatarColors[(index + 1) % avatarColors.length]} 100%);">
+                    ${person.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                    <div class="details-person-name">${escapeHtml(person.name)}</div>
+                </div>
+            </div>
+            <span class="details-person-amount" style="color: var(--warning)">${person.count} pending</span>
+        </li>
+    `).join('');
+}
+
+// Close details modal
+function closeDetailsModal() {
+    detailsModal.classList.remove('active');
+}
+
+// Close details modal on outside click
+if (detailsModal) {
+    detailsModal.addEventListener('click', (e) => {
+        if (e.target === detailsModal) {
+            closeDetailsModal();
+        }
+    });
+}
+
 // Check if date is overdue
 function isOverdue(dateString) {
     const today = new Date();
@@ -920,37 +1320,54 @@ function formatMoney(amount) {
     return '₹' + formatted;
 }
 
-// Format date
-function formatDate(dateString) {
 // Format date for display (DD/MM/YYYY)
 function formatDate(dateString) {
+    if (!dateString) return '-';
     return isoToDDMMYYYY(dateString);
 }
 
 // Render single transaction item
 function renderTransactionItem(transaction, showPerson = false) {
+    const isShared = transaction.isShared === true;
     const isIncome = transaction.type === 'regular' ? transaction.amount > 0 : transaction.type === 'lend';
     
     let badgeHtml = '';
     if (transaction.type === 'lend') {
-        badgeHtml = `<span class="transaction-badge badge-lend">LENT${showPerson ? '' : ' to ' + escapeHtml(transaction.person)}</span>`;
+        // For shared transactions, reverse the label (their lend = my borrow)
+        if (isShared) {
+            badgeHtml = `<span class="transaction-badge badge-borrow">BORROWED from ${escapeHtml(transaction.ownerName || 'Unknown')}</span>`;
+        } else {
+            badgeHtml = `<span class="transaction-badge badge-lend">LENT${showPerson ? '' : ' to ' + escapeHtml(transaction.person)}</span>`;
+        }
     } else if (transaction.type === 'borrow') {
-        badgeHtml = `<span class="transaction-badge badge-borrow">BORROWED${showPerson ? '' : ' from ' + escapeHtml(transaction.person)}</span>`;
+        // For shared transactions, reverse the label (their borrow = my lend)
+        if (isShared) {
+            badgeHtml = `<span class="transaction-badge badge-lend">LENT to ${escapeHtml(transaction.ownerName || 'Unknown')}</span>`;
+        } else {
+            badgeHtml = `<span class="transaction-badge badge-borrow">BORROWED${showPerson ? '' : ' from ' + escapeHtml(transaction.person)}</span>`;
+        }
     }
     
     if (transaction.settled) {
         badgeHtml += '<span class="transaction-badge badge-settled">SETTLED</span>';
     }
     
+    // Add shared indicator
+    if (isShared) {
+        badgeHtml += '<span class="transaction-badge badge-shared">SHARED</span>';
+    }
+    
     const category = transaction.type === 'regular' ? transaction.category : transaction.type;
     
+    // For shared transactions, reverse the income/expense display
+    const displayAsIncome = isShared ? !isIncome : isIncome;
+    
     return `
-        <li class="transaction-item ${isIncome ? 'income' : 'expense'}">
+        <li class="transaction-item ${displayAsIncome ? 'income' : 'expense'}">
             <div class="transaction-icon">${categoryIcons[category]}</div>
             <div class="transaction-info">
                 <div class="description">${escapeHtml(transaction.description)} ${badgeHtml}</div>
                 <div class="meta">
-                    <span>${categoryIcons[category]} ${capitalizeFirst(category)}</span>
                     <span>${formatDate(transaction.date)}</span>
                 </div>
                 ${transaction.dueDate && !transaction.settled ? `
@@ -959,10 +1376,14 @@ function renderTransactionItem(transaction, showPerson = false) {
                     </div>
                 ` : ''}
             </div>
-            <span class="transaction-amount ${isIncome ? 'income' : 'expense'}">
-                ${isIncome ? '+' : '-'}${formatMoney(transaction.amount)}
+            <span class="transaction-amount ${displayAsIncome ? 'income' : 'expense'}">
+                ${displayAsIncome ? '+' : '-'}${formatMoney(transaction.amount)}
             </span>
+            ${!isShared ? `
             <div class="transaction-actions">
+                <button class="edit-btn" onclick="openEditModal('${transaction.id}')" title="Edit">
+                    <span class="material-symbols-outlined">edit</span>
+                </button>
                 ${(transaction.type === 'lend' || transaction.type === 'borrow') && !transaction.settled ? 
                     `<button class="settle-btn" onclick="settleTransaction('${transaction.id}')" title="Mark as settled">
                         <span class="material-symbols-outlined">check</span>
@@ -972,13 +1393,20 @@ function renderTransactionItem(transaction, showPerson = false) {
                     <span class="material-symbols-outlined">delete</span>
                 </button>
             </div>
+            ` : `
+            <div class="transaction-actions">
+                <span class="shared-view-only" title="Shared transaction - view only">👁️</span>
+            </div>
+            `}
         </li>
     `;
 }
 
 // Render recent transactions (last 5)
 function renderRecentTransactions() {
-    const recent = [...transactions]
+    // Combine own and shared transactions for recent list
+    const allTransactions = [...transactions, ...sharedTransactions];
+    const recent = allTransactions
         .sort((a, b) => new Date(b.date) - new Date(a.date))
         .slice(0, 5);
     
@@ -1021,17 +1449,11 @@ async function addTransaction(e) {
     const type = transactionTypeInput.value;
     const description = descriptionInput.value.trim();
     const amount = Math.abs(parseFloat(amountInput.value));
-    const dateStr = dateInput.value;
+    const dateValue = dateInput.value;
+    const date = parseDDMMYYYY(dateValue);
 
-    // Validate date format
-    const dateISO = ddmmyyyyToISO(dateStr);
-    if (!dateISO) {
-        alert('Please enter a valid date in DD/MM/YYYY format');
-        return;
-    }
-
-    if (!description || isNaN(amount)) {
-        alert('Please fill in all required fields');
+    if (!description || isNaN(amount) || !date) {
+        alert('Please fill in all required fields (use DD/MM/YYYY format for dates)');
         return;
     }
 
@@ -1042,25 +1464,33 @@ async function addTransaction(e) {
         return;
     }
     
-    // Find the selected person to get their email
+    // Find the selected person to get their email (store in lowercase for sharing)
     const selectedPerson = savedPeople.find(p => p.name === personName);
-    const personEmail = selectedPerson ? selectedPerson.email : '';
+    const personEmail = selectedPerson && selectedPerson.email ? selectedPerson.email.toLowerCase() : null;
 
-    // Parse due date and reminder date
-    const dueDateISO = dueDateInput.value ? ddmmyyyyToISO(dueDateInput.value) : null;
-    const reminderDateISO = reminderInput.value ? ddmmyyyyToISO(reminderInput.value) : null;
+    // Parse due date
+    const dueDateValue = dueDateInput.value;
+    const dueDate = dueDateValue ? parseDDMMYYYY(dueDateValue) : null;
+
+    // Handle reminder date for custom option
+    let reminderValue = reminderInput.value;
+    let customReminderDate = null;
+    if (reminderValue === 'custom' && reminderDateInput && reminderDateInput.value) {
+        customReminderDate = parseDDMMYYYY(reminderDateInput.value);
+    }
 
     const transaction = {
         id: generateId(),
         type,
         description,
-        date: dateISO,
+        date,
         amount,
         person: personName,
         personEmail: personEmail || null,
         category: type,
-        dueDate: dueDateISO,
-        reminderDate: reminderDateISO,
+        dueDate: dueDate,
+        reminder: reminderValue,
+        customReminderDate: customReminderDate,
         settled: false
     };
 
@@ -1075,7 +1505,9 @@ async function addTransaction(e) {
     amountInput.value = '';
     personSelect.value = '';
     dueDateInput.value = '';
-    reminderInput.value = '';
+    reminderInput.value = 'none';
+    if (reminderDateField) reminderDateField.style.display = 'none';
+    if (reminderDateInput) reminderDateInput.value = '';
     setTodayDate();
     descriptionInput.focus();
     
@@ -1106,6 +1538,152 @@ async function deleteTransaction(id) {
         updateUI();
         checkReminders();
     }
+}
+
+// ========================================
+// Edit Transaction Functions
+// ========================================
+
+const editModal = document.getElementById('edit-modal');
+const editForm = document.getElementById('edit-form');
+const editIdInput = document.getElementById('edit-id');
+const editTypeInput = document.getElementById('edit-type');
+const editDescriptionInput = document.getElementById('edit-description');
+const editAmountInput = document.getElementById('edit-amount');
+const editPersonInput = document.getElementById('edit-person');
+const editDateInput = document.getElementById('edit-date');
+const editDueDateInput = document.getElementById('edit-due-date');
+const editSettledInput = document.getElementById('edit-settled');
+
+// Setup date inputs for edit modal
+function setupEditDateInputs() {
+    setupDateInput(editDateInput);
+    setupDateInput(editDueDateInput);
+}
+
+// Open edit modal with transaction data
+function openEditModal(transactionId) {
+    const transaction = transactions.find(t => t.id === transactionId);
+    if (!transaction) return;
+    
+    // Populate person dropdown
+    editPersonInput.innerHTML = savedPeople.map(p => 
+        `<option value="${escapeHtml(p.name)}" ${p.name === transaction.person ? 'selected' : ''}>${escapeHtml(p.name)}</option>`
+    ).join('');
+    
+    // Populate form fields
+    editIdInput.value = transaction.id;
+    editTypeInput.value = transaction.type;
+    editDescriptionInput.value = transaction.description;
+    editAmountInput.value = transaction.amount;
+    editDateInput.value = isoToDDMMYYYY(transaction.date);
+    editDueDateInput.value = transaction.dueDate ? isoToDDMMYYYY(transaction.dueDate) : '';
+    editSettledInput.value = transaction.settled ? 'true' : 'false';
+    
+    // Setup date input formatting
+    setupEditDateInputs();
+    
+    // Show modal
+    editModal.classList.add('active');
+}
+
+// Close edit modal
+function closeEditModal() {
+    editModal.classList.remove('active');
+    editForm.reset();
+}
+
+// Handle edit form submission
+if (editForm) {
+    editForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const id = editIdInput.value;
+        const transactionIndex = transactions.findIndex(t => t.id === id);
+        
+        if (transactionIndex === -1) {
+            alert('Transaction not found!');
+            return;
+        }
+        
+        // Parse dates
+        const date = parseDDMMYYYY(editDateInput.value);
+        const dueDate = editDueDateInput.value ? parseDDMMYYYY(editDueDateInput.value) : null;
+        
+        if (!date) {
+            alert('Please enter a valid date (DD/MM/YYYY)');
+            return;
+        }
+        
+        // Get person email
+        const personName = editPersonInput.value;
+        const selectedPerson = savedPeople.find(p => p.name === personName);
+        const personEmail = selectedPerson ? selectedPerson.email : '';
+        
+        // Update transaction
+        const updatedTransaction = {
+            ...transactions[transactionIndex],
+            type: editTypeInput.value,
+            description: editDescriptionInput.value.trim(),
+            amount: Math.abs(parseFloat(editAmountInput.value)),
+            person: personName,
+            personEmail: personEmail || null,
+            category: editTypeInput.value,
+            date: date,
+            dueDate: dueDate,
+            settled: editSettledInput.value === 'true'
+        };
+        
+        transactions[transactionIndex] = updatedTransaction;
+        
+        // Save changes
+        saveToLocalStorage();
+        await updateTransactionInFirebase(updatedTransaction);
+        
+        // Close modal and update UI
+        closeEditModal();
+        updateUI();
+        checkReminders();
+        
+        // Show confirmation
+        showToast('Transaction updated successfully!');
+    });
+}
+
+// Show toast notification
+function showToast(message) {
+    // Remove existing toast if any
+    const existingToast = document.querySelector('.toast');
+    if (existingToast) {
+        existingToast.remove();
+    }
+    
+    // Create toast
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerHTML = `
+        <span class="material-symbols-outlined">check_circle</span>
+        <span>${message}</span>
+    `;
+    document.body.appendChild(toast);
+    
+    // Show toast
+    setTimeout(() => toast.classList.add('show'), 10);
+    
+    // Hide and remove toast after 3 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// Close modal on outside click
+if (editModal) {
+    editModal.addEventListener('click', (e) => {
+        if (e.target === editModal) {
+            closeEditModal();
+        }
+    });
 }
 
 // Clear all transactions
@@ -1178,7 +1756,7 @@ if (addPersonForm) {
         if (addPerson(name, email)) {
             newPersonNameInput.value = '';
             newPersonEmailInput.value = '';
-            showNotification('Person added successfully!');
+            showNotification('Person added!');
         }
     });
 }
@@ -1186,7 +1764,6 @@ if (addPersonForm) {
 // Add Person button in Quick Add form (navigate to People section)
 if (addPersonBtn) {
     addPersonBtn.addEventListener('click', () => {
-        // Navigate to People section
         navItems.forEach(item => {
             item.classList.toggle('active', item.dataset.section === 'people');
         });
@@ -1195,7 +1772,6 @@ if (addPersonBtn) {
         });
         pageTitle.textContent = 'People';
         
-        // Focus on name input
         setTimeout(() => {
             if (newPersonNameInput) newPersonNameInput.focus();
         }, 100);
@@ -1204,7 +1780,6 @@ if (addPersonBtn) {
 
 // Event Listeners
 form.addEventListener('submit', addTransaction);
-filterCategory.addEventListener('change', updateUI);
 filterType.addEventListener('change', updateUI);
 clearAllBtn.addEventListener('click', clearAllTransactions);
 
