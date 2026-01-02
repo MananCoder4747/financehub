@@ -790,15 +790,24 @@ function getFilteredTransactions() {
 
 // Update balance
 function updateBalance() {
-    // Calculate net balance: Money to receive (lent) - Money to pay (borrowed)
-    const lendTransactions = transactions.filter(t => t.type === 'lend' && !t.settled);
-    const borrowTransactions = transactions.filter(t => t.type === 'borrow' && !t.settled);
+    // Calculate net balance from own transactions
+    const ownLendTransactions = transactions.filter(t => t.type === 'lend' && !t.settled);
+    const ownBorrowTransactions = transactions.filter(t => t.type === 'borrow' && !t.settled);
     
-    const totalLent = lendTransactions.reduce((acc, t) => acc + t.amount, 0);
-    const totalBorrowed = borrowTransactions.reduce((acc, t) => acc + t.amount, 0);
+    const ownTotalLent = ownLendTransactions.reduce((acc, t) => acc + t.amount, 0);
+    const ownTotalBorrowed = ownBorrowTransactions.reduce((acc, t) => acc + t.amount, 0);
     
-    // Net balance: positive means others owe you, negative means you owe others
-    const netBalance = totalLent - totalBorrowed;
+    // Calculate from shared transactions (reversed perspective)
+    // If someone lent TO me (their type='lend'), I OWE them (negative for me)
+    // If someone borrowed FROM me (their type='borrow'), they OWE me (positive for me)
+    const sharedLendTransactions = sharedTransactions.filter(t => t.type === 'lend' && !t.settled);
+    const sharedBorrowTransactions = sharedTransactions.filter(t => t.type === 'borrow' && !t.settled);
+    
+    const sharedIOwe = sharedLendTransactions.reduce((acc, t) => acc + t.amount, 0); // They lent to me, I owe
+    const sharedTheyOwe = sharedBorrowTransactions.reduce((acc, t) => acc + t.amount, 0); // They borrowed from me, they owe
+    
+    // Net balance: (what others owe me) - (what I owe others)
+    const netBalance = (ownTotalLent + sharedTheyOwe) - (ownTotalBorrowed + sharedIOwe);
     
     const formattedBalance = formatMoney(Math.abs(netBalance));
     const balanceColor = netBalance >= 0 ? '#10b981' : '#ef4444';
@@ -816,11 +825,25 @@ function updateBalance() {
 
 // Update borrow/lend summary
 function updateBorrowLendSummary() {
-    const lendTransactions = transactions.filter(t => t.type === 'lend' && !t.settled);
-    const borrowTransactions = transactions.filter(t => t.type === 'borrow' && !t.settled);
+    // Own transactions
+    const ownLendTransactions = transactions.filter(t => t.type === 'lend' && !t.settled);
+    const ownBorrowTransactions = transactions.filter(t => t.type === 'borrow' && !t.settled);
     
-    const totalLent = lendTransactions.reduce((acc, t) => acc + t.amount, 0);
-    const totalBorrowed = borrowTransactions.reduce((acc, t) => acc + t.amount, 0);
+    const ownTotalLent = ownLendTransactions.reduce((acc, t) => acc + t.amount, 0);
+    const ownTotalBorrowed = ownBorrowTransactions.reduce((acc, t) => acc + t.amount, 0);
+    
+    // Shared transactions (reversed perspective)
+    // Their 'lend' = I need to pay them back (my borrow)
+    // Their 'borrow' = They need to pay me back (my lend)
+    const sharedLendTransactions = sharedTransactions.filter(t => t.type === 'lend' && !t.settled);
+    const sharedBorrowTransactions = sharedTransactions.filter(t => t.type === 'borrow' && !t.settled);
+    
+    const sharedAsMyBorrowed = sharedLendTransactions.reduce((acc, t) => acc + t.amount, 0);
+    const sharedAsMyLent = sharedBorrowTransactions.reduce((acc, t) => acc + t.amount, 0);
+    
+    // Total from both sources
+    const totalLent = ownTotalLent + sharedAsMyLent;
+    const totalBorrowed = ownTotalBorrowed + sharedAsMyBorrowed;
     
     totalLentEl.textContent = formatMoney(totalLent);
     totalBorrowedEl.textContent = formatMoney(totalBorrowed);
@@ -831,15 +854,15 @@ function checkReminders() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const pendingTransactions = transactions.filter(t => 
-        (t.type === 'lend' || t.type === 'borrow') && 
-        !t.settled && 
-        t.dueDate
-    );
+    // Combine own and shared transactions for reminders
+    const allTransactionsForReminders = [
+        ...transactions.filter(t => (t.type === 'lend' || t.type === 'borrow') && !t.settled && t.dueDate),
+        ...sharedTransactions.filter(t => (t.type === 'lend' || t.type === 'borrow') && !t.settled && t.dueDate)
+    ];
     
     const reminders = [];
     
-    pendingTransactions.forEach(t => {
+    allTransactionsForReminders.forEach(t => {
         const dueDate = new Date(t.dueDate);
         dueDate.setHours(0, 0, 0, 0);
         const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
