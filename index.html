@@ -414,6 +414,76 @@
         </div>
     </div>
 
+    <!-- Edit Transaction Modal -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content edit-modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span class="material-symbols-outlined">edit</span>
+                    <h2>Edit Transaction</h2>
+                </div>
+                <button class="modal-close" onclick="closeEditModal()">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-form">
+                    <input type="hidden" id="edit-id">
+                    
+                    <div class="form-group">
+                        <label for="edit-type">Type</label>
+                        <select id="edit-type" required>
+                            <option value="lend">Lend</option>
+                            <option value="borrow">Borrow</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-description">Description</label>
+                        <input type="text" id="edit-description" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-amount">Amount (₹)</label>
+                        <input type="number" id="edit-amount" step="0.01" min="0" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-person">Person</label>
+                        <select id="edit-person" required>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-date">Date</label>
+                        <input type="text" id="edit-date" placeholder="DD/MM/YYYY" maxlength="10" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-due-date">Due Date</label>
+                        <input type="text" id="edit-due-date" placeholder="DD/MM/YYYY" maxlength="10">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-settled">Status</label>
+                        <select id="edit-settled">
+                            <option value="false">Pending</option>
+                            <option value="true">Settled</option>
+                        </select>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn-cancel" onclick="closeEditModal()">Cancel</button>
+                        <button type="submit" class="btn-save">
+                            <span class="material-symbols-outlined">save</span>
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Footer -->
     <footer class="app-footer">
         <div class="footer-content">

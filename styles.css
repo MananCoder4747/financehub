@@ -1633,6 +1633,159 @@ input, textarea, [contenteditable="true"] {
     font-size: 1.1rem;
 }
 
+/* Edit Modal Styles */
+.edit-modal-content {
+    max-width: 500px;
+}
+
+.edit-modal-content .modal-title {
+    gap: 12px;
+}
+
+.edit-modal-content .modal-title .material-symbols-outlined {
+    font-size: 1.8rem;
+}
+
+#edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+#edit-form .form-group {
+    margin-bottom: 0;
+}
+
+#edit-form input,
+#edit-form select {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 1rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    transition: var(--transition);
+}
+
+#edit-form input:focus,
+#edit-form select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+#edit-form label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 10px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+}
+
+.btn-cancel {
+    flex: 1;
+    padding: 14px 20px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--text-secondary);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-cancel:hover {
+    background: var(--bg-primary);
+    border-color: var(--text-secondary);
+}
+
+.btn-save {
+    flex: 2;
+    padding: 14px 20px;
+    border: none;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
+.btn-save .material-symbols-outlined {
+    font-size: 1.2rem;
+}
+
+/* Edit button in transaction actions */
+.edit-btn {
+    background: rgba(59, 130, 246, 0.1);
+    border: none;
+    color: var(--primary);
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.edit-btn:hover {
+    background: rgba(59, 130, 246, 0.2);
+    transform: scale(1.1);
+}
+
+.edit-btn .material-symbols-outlined {
+    font-size: 1.1rem;
+}
+
+/* Update confirmation toast */
+.toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    padding: 15px 30px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    z-index: 10000;
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+.toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.toast .material-symbols-outlined {
+    font-size: 1.3rem;
+}
+
 .email-hint {
     display: block;
     margin-top: 5px;

@@ -1105,6 +1105,9 @@ function renderTransactionItem(transaction, showPerson = false) {
                 ${isIncome ? '+' : '-'}${formatMoney(transaction.amount)}
             </span>
             <div class="transaction-actions">
+                <button class="edit-btn" onclick="openEditModal('${transaction.id}')" title="Edit">
+                    <span class="material-symbols-outlined">edit</span>
+                </button>
                 ${(transaction.type === 'lend' || transaction.type === 'borrow') && !transaction.settled ? 
                     `<button class="settle-btn" onclick="settleTransaction('${transaction.id}')" title="Mark as settled">
                         <span class="material-symbols-outlined">check</span>
@@ -1252,6 +1255,165 @@ async function deleteTransaction(id) {
         updateUI();
         checkReminders();
     }
+}
+
+// ========================================
+// Edit Transaction Functions
+// ========================================
+
+const editModal = document.getElementById('edit-modal');
+const editForm = document.getElementById('edit-form');
+const editIdInput = document.getElementById('edit-id');
+const editTypeInput = document.getElementById('edit-type');
+const editDescriptionInput = document.getElementById('edit-description');
+const editAmountInput = document.getElementById('edit-amount');
+const editPersonInput = document.getElementById('edit-person');
+const editDateInput = document.getElementById('edit-date');
+const editDueDateInput = document.getElementById('edit-due-date');
+const editSettledInput = document.getElementById('edit-settled');
+
+// Setup date inputs for edit modal
+function setupEditDateInputs() {
+    setupDateInput(editDateInput);
+    setupDateInput(editDueDateInput);
+}
+
+// Open edit modal with transaction data
+function openEditModal(transactionId) {
+    const transaction = transactions.find(t => t.id === transactionId);
+    if (!transaction) return;
+    
+    // Populate person dropdown
+    editPersonInput.innerHTML = savedPeople.map(p => 
+        `<option value="${escapeHtml(p.name)}" ${p.name === transaction.person ? 'selected' : ''}>${escapeHtml(p.name)}</option>`
+    ).join('');
+    
+    // Populate form fields
+    editIdInput.value = transaction.id;
+    editTypeInput.value = transaction.type;
+    editDescriptionInput.value = transaction.description;
+    editAmountInput.value = transaction.amount;
+    editDateInput.value = isoToDDMMYYYY(transaction.date);
+    editDueDateInput.value = transaction.dueDate ? isoToDDMMYYYY(transaction.dueDate) : '';
+    editSettledInput.value = transaction.settled ? 'true' : 'false';
+    
+    // Setup date input formatting
+    setupEditDateInputs();
+    
+    // Show modal
+    editModal.classList.add('active');
+}
+
+// Close edit modal
+function closeEditModal() {
+    editModal.classList.remove('active');
+    editForm.reset();
+}
+
+// Handle edit form submission
+if (editForm) {
+    editForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const id = editIdInput.value;
+        const transactionIndex = transactions.findIndex(t => t.id === id);
+        
+        if (transactionIndex === -1) {
+            alert('Transaction not found!');
+            return;
+        }
+        
+        // Parse dates
+        const date = parseDDMMYYYY(editDateInput.value);
+        const dueDate = editDueDateInput.value ? parseDDMMYYYY(editDueDateInput.value) : null;
+        
+        if (!date) {
+            alert('Please enter a valid date (DD/MM/YYYY)');
+            return;
+        }
+        
+        // Get person email
+        const personName = editPersonInput.value;
+        const selectedPerson = savedPeople.find(p => p.name === personName);
+        const personEmail = selectedPerson ? selectedPerson.email : '';
+        
+        // Update transaction
+        const updatedTransaction = {
+            ...transactions[transactionIndex],
+            type: editTypeInput.value,
+            description: editDescriptionInput.value.trim(),
+            amount: Math.abs(parseFloat(editAmountInput.value)),
+            person: personName,
+            personEmail: personEmail || null,
+            category: editTypeInput.value,
+            date: date,
+            dueDate: dueDate,
+            settled: editSettledInput.value === 'true'
+        };
+        
+        transactions[transactionIndex] = updatedTransaction;
+        
+        // Save changes
+        saveToLocalStorage();
+        await updateTransactionInFirebase(updatedTransaction);
+        
+        // Close modal and update UI
+        closeEditModal();
+        updateUI();
+        checkReminders();
+        
+        // Show confirmation
+        showToast('Transaction updated successfully!');
+    });
+}
+
+// Update transaction in Firebase
+async function updateTransactionInFirebase(transaction) {
+    if (!currentUser || !isFirebaseConfigured()) return;
+    
+    try {
+        await db.collection('users').doc(currentUser.uid)
+            .collection('transactions').doc(transaction.id)
+            .set(transaction);
+    } catch (error) {
+        console.error('Error updating transaction in Firebase:', error);
+    }
+}
+
+// Show toast notification
+function showToast(message) {
+    // Remove existing toast if any
+    const existingToast = document.querySelector('.toast');
+    if (existingToast) {
+        existingToast.remove();
+    }
+    
+    // Create toast
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerHTML = `
+        <span class="material-symbols-outlined">check_circle</span>
+        <span>${message}</span>
+    `;
+    document.body.appendChild(toast);
+    
+    // Show toast
+    setTimeout(() => toast.classList.add('show'), 10);
+    
+    // Hide and remove toast after 3 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// Close modal on outside click
+if (editModal) {
+    editModal.addEventListener('click', (e) => {
+        if (e.target === editModal) {
+            closeEditModal();
+        }
+    });
 }
 
 // Clear all transactions
