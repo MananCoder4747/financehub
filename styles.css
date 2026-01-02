@@ -613,6 +613,14 @@ input, textarea, [contenteditable="true"] {
     box-shadow: var(--shadow-lg);
 }
 
+.stat-card.clickable {
+    cursor: pointer;
+}
+
+.stat-card.clickable:active {
+    transform: translateY(-2px);
+}
+
 .stat-icon {
     width: 55px;
     height: 55px;
@@ -1642,6 +1650,110 @@ input, textarea, [contenteditable="true"] {
 
 .shared-indicator .material-symbols-outlined {
     font-size: 1.1rem;
+}
+
+/* Details Modal Styles */
+.details-modal-content {
+    max-width: 600px;
+}
+
+.details-modal-content .modal-title {
+    gap: 12px;
+}
+
+.details-modal-content .modal-title .material-symbols-outlined {
+    font-size: 1.8rem;
+}
+
+.details-modal-content .modal-body {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.details-modal-content .transactions-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.details-person-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px;
+    background: var(--bg-primary);
+    border-radius: var(--radius);
+    margin-bottom: 10px;
+    transition: var(--transition);
+}
+
+.details-person-item:hover {
+    background: var(--bg-secondary);
+}
+
+.details-person-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.details-person-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: white;
+}
+
+.details-person-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.details-person-count {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.details-person-amount {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.details-person-amount.positive {
+    color: var(--success);
+}
+
+.details-person-amount.negative {
+    color: var(--danger);
+}
+
+.details-person-count {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.details-person-item:hover {
+    background: rgba(139, 92, 246, 0.1);
+}
+
+#details-transactions-list .empty-state {
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#details-transactions-list .empty-state .material-symbols-outlined {
+    font-size: 3rem;
+    color: var(--success);
 }
 
 /* Edit Modal Styles */

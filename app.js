@@ -1083,6 +1083,207 @@ function closePersonModal() {
     personModal.classList.remove('active');
 }
 
+// ========================================
+// Details Modal Functions
+// ========================================
+
+const detailsModal = document.getElementById('details-modal');
+const detailsModalIcon = document.getElementById('details-modal-icon');
+const detailsModalTitle = document.getElementById('details-modal-title');
+const detailsModalLabel = document.getElementById('details-modal-label');
+const detailsModalTotal = document.getElementById('details-modal-total');
+const detailsTransactionsList = document.getElementById('details-transactions-list');
+
+// Open To Receive modal (money to collect from others)
+function openReceiveModal() {
+    // Get all lend transactions (own) + borrow transactions from shared (they borrowed from me)
+    const ownLend = transactions.filter(t => t.type === 'lend' && !t.settled);
+    const sharedBorrow = sharedTransactions.filter(t => t.type === 'borrow' && !t.settled);
+    
+    // Group by person
+    const peopleToReceive = {};
+    
+    ownLend.forEach(t => {
+        const name = t.person.toLowerCase();
+        if (!peopleToReceive[name]) {
+            peopleToReceive[name] = { name: t.person, amount: 0, count: 0 };
+        }
+        peopleToReceive[name].amount += t.amount;
+        peopleToReceive[name].count++;
+    });
+    
+    sharedBorrow.forEach(t => {
+        const name = (t.ownerName || 'Unknown').toLowerCase();
+        if (!peopleToReceive[name]) {
+            peopleToReceive[name] = { name: t.ownerName || 'Unknown', amount: 0, count: 0 };
+        }
+        peopleToReceive[name].amount += t.amount;
+        peopleToReceive[name].count++;
+    });
+    
+    const total = Object.values(peopleToReceive).reduce((acc, p) => acc + p.amount, 0);
+    
+    detailsModalIcon.textContent = 'arrow_upward';
+    detailsModalTitle.textContent = 'To Receive';
+    detailsModalLabel.textContent = 'Total to Collect';
+    detailsModalTotal.textContent = formatMoney(total);
+    detailsModalTotal.style.color = '#10b981';
+    
+    renderDetailsList(peopleToReceive, 'positive');
+    detailsModal.classList.add('active');
+}
+
+// Open To Pay modal (money to pay to others)
+function openPayModal() {
+    // Get all borrow transactions (own) + lend transactions from shared (they lent to me)
+    const ownBorrow = transactions.filter(t => t.type === 'borrow' && !t.settled);
+    const sharedLend = sharedTransactions.filter(t => t.type === 'lend' && !t.settled);
+    
+    // Group by person
+    const peopleToPay = {};
+    
+    ownBorrow.forEach(t => {
+        const name = t.person.toLowerCase();
+        if (!peopleToPay[name]) {
+            peopleToPay[name] = { name: t.person, amount: 0, count: 0 };
+        }
+        peopleToPay[name].amount += t.amount;
+        peopleToPay[name].count++;
+    });
+    
+    sharedLend.forEach(t => {
+        const name = (t.ownerName || 'Unknown').toLowerCase();
+        if (!peopleToPay[name]) {
+            peopleToPay[name] = { name: t.ownerName || 'Unknown', amount: 0, count: 0 };
+        }
+        peopleToPay[name].amount += t.amount;
+        peopleToPay[name].count++;
+    });
+    
+    const total = Object.values(peopleToPay).reduce((acc, p) => acc + p.amount, 0);
+    
+    detailsModalIcon.textContent = 'arrow_downward';
+    detailsModalTitle.textContent = 'To Pay';
+    detailsModalLabel.textContent = 'Total to Pay';
+    detailsModalTotal.textContent = formatMoney(total);
+    detailsModalTotal.style.color = '#ef4444';
+    
+    renderDetailsList(peopleToPay, 'negative');
+    detailsModal.classList.add('active');
+}
+
+// Open Pending modal (all pending transactions)
+function openPendingModal() {
+    // Get all pending transactions
+    const allPending = [
+        ...transactions.filter(t => !t.settled),
+        ...sharedTransactions.filter(t => !t.settled)
+    ];
+    
+    // Group by person
+    const pendingByPerson = {};
+    
+    allPending.forEach(t => {
+        let name, displayName;
+        if (t.isShared) {
+            name = (t.ownerName || 'Unknown').toLowerCase();
+            displayName = t.ownerName || 'Unknown';
+        } else {
+            name = t.person.toLowerCase();
+            displayName = t.person;
+        }
+        
+        if (!pendingByPerson[name]) {
+            pendingByPerson[name] = { name: displayName, amount: 0, count: 0 };
+        }
+        pendingByPerson[name].count++;
+    });
+    
+    const totalCount = allPending.length;
+    
+    detailsModalIcon.textContent = 'pending_actions';
+    detailsModalTitle.textContent = 'Pending Transactions';
+    detailsModalLabel.textContent = 'Total Pending';
+    detailsModalTotal.textContent = totalCount + ' transaction' + (totalCount !== 1 ? 's' : '');
+    detailsModalTotal.style.color = '#f59e0b';
+    
+    renderPendingList(pendingByPerson);
+    detailsModal.classList.add('active');
+}
+
+// Render details list (for receive/pay)
+function renderDetailsList(people, amountClass) {
+    const peopleArray = Object.values(people).sort((a, b) => b.amount - a.amount);
+    
+    if (peopleArray.length === 0) {
+        detailsTransactionsList.innerHTML = `
+            <li class="empty-state">
+                <span class="material-symbols-outlined">check_circle</span>
+                <p>No pending amounts</p>
+            </li>
+        `;
+        return;
+    }
+    
+    detailsTransactionsList.innerHTML = peopleArray.map((person, index) => `
+        <li class="details-person-item" onclick="openPersonModal('${escapeHtml(person.name)}')">
+            <div class="details-person-info">
+                <div class="details-person-avatar" style="background: linear-gradient(135deg, ${avatarColors[index % avatarColors.length]} 0%, ${avatarColors[(index + 1) % avatarColors.length]} 100%);">
+                    ${person.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                    <div class="details-person-name">${escapeHtml(person.name)}</div>
+                    <div class="details-person-count">${person.count} transaction${person.count !== 1 ? 's' : ''}</div>
+                </div>
+            </div>
+            <span class="details-person-amount ${amountClass}">${formatMoney(person.amount)}</span>
+        </li>
+    `).join('');
+}
+
+// Render pending list
+function renderPendingList(people) {
+    const peopleArray = Object.values(people).sort((a, b) => b.count - a.count);
+    
+    if (peopleArray.length === 0) {
+        detailsTransactionsList.innerHTML = `
+            <li class="empty-state">
+                <span class="material-symbols-outlined">check_circle</span>
+                <p>No pending transactions</p>
+            </li>
+        `;
+        return;
+    }
+    
+    detailsTransactionsList.innerHTML = peopleArray.map((person, index) => `
+        <li class="details-person-item" onclick="openPersonModal('${escapeHtml(person.name)}')">
+            <div class="details-person-info">
+                <div class="details-person-avatar" style="background: linear-gradient(135deg, ${avatarColors[index % avatarColors.length]} 0%, ${avatarColors[(index + 1) % avatarColors.length]} 100%);">
+                    ${person.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                    <div class="details-person-name">${escapeHtml(person.name)}</div>
+                </div>
+            </div>
+            <span class="details-person-amount" style="color: var(--warning)">${person.count} pending</span>
+        </li>
+    `).join('');
+}
+
+// Close details modal
+function closeDetailsModal() {
+    detailsModal.classList.remove('active');
+}
+
+// Close details modal on outside click
+if (detailsModal) {
+    detailsModal.addEventListener('click', (e) => {
+        if (e.target === detailsModal) {
+            closeDetailsModal();
+        }
+    });
+}
+
 // Check if date is overdue
 function isOverdue(dateString) {
     const today = new Date();
