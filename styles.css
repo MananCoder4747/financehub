@@ -1735,26 +1735,19 @@ input, textarea, [contenteditable="true"] {
 
 /* Edit button in transaction actions */
 .edit-btn {
+    padding: 8px 12px;
     background: rgba(59, 130, 246, 0.1);
     border: none;
     color: var(--primary);
-    width: 32px;
-    height: 32px;
     border-radius: 8px;
     cursor: pointer;
     transition: var(--transition);
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 .edit-btn:hover {
-    background: rgba(59, 130, 246, 0.2);
-    transform: scale(1.1);
-}
-
-.edit-btn .material-symbols-outlined {
-    font-size: 1.1rem;
+    background: var(--primary);
+    color: white;
+    transform: scale(1.05);
 }
 
 /* Update confirmation toast */
