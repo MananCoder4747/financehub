@@ -21,9 +21,7 @@ const recentTransactionsList = document.getElementById('recent-transactions');
 const form = document.getElementById('transaction-form');
 const descriptionInput = document.getElementById('description');
 const amountInput = document.getElementById('amount');
-const categoryInput = document.getElementById('category');
 const dateInput = document.getElementById('date');
-const filterCategory = document.getElementById('filter-category');
 const filterType = document.getElementById('filter-type');
 const clearAllBtn = document.getElementById('clear-all');
 
@@ -776,14 +774,9 @@ function getFilteredTransactions() {
     let filtered = [...transactions, ...sharedTransactions];
     
     const typeFilter = filterType.value;
-    const categoryFilter = filterCategory.value;
     
     if (typeFilter !== 'all') {
         filtered = filtered.filter(t => t.type === typeFilter);
-    }
-    
-    if (categoryFilter !== 'all') {
-        filtered = filtered.filter(t => t.category === categoryFilter);
     }
     
     return filtered;
@@ -1174,7 +1167,6 @@ function renderTransactionItem(transaction, showPerson = false) {
             <div class="transaction-info">
                 <div class="description">${escapeHtml(transaction.description)} ${badgeHtml}</div>
                 <div class="meta">
-                    <span>${categoryIcons[category]} ${capitalizeFirst(category)}</span>
                     <span>${formatDate(transaction.date)}</span>
                 </div>
                 ${transaction.dueDate && !transaction.settled ? `
@@ -1587,7 +1579,6 @@ if (addPersonBtn) {
 
 // Event Listeners
 form.addEventListener('submit', addTransaction);
-filterCategory.addEventListener('change', updateUI);
 filterType.addEventListener('change', updateUI);
 clearAllBtn.addEventListener('click', clearAllTransactions);
 
