@@ -43,15 +43,19 @@ body {
     cursor: default;
 }
 
-/* Prevent text cursor on headings and labels */
-h1, h2, h3, h4, h5, h6, label, p, span, .panel-header, .stat-label, .stat-value {
-    cursor: default;
+/* Prevent text cursor on all non-input elements */
+h1, h2, h3, h4, h5, h6, label, p, span, div, li, ul, 
+.panel-header, .stat-label, .stat-value,
+.transaction-item, .transaction-info, .transaction-due,
+.transaction-amount, .description, .meta, .transaction-icon,
+.transaction-badge, .material-symbols-outlined {
+    cursor: default !important;
     user-select: none;
 }
 
 /* Allow text selection only on input elements */
 input, textarea, [contenteditable="true"] {
-    cursor: text;
+    cursor: text !important;
     user-select: text;
 }
 
