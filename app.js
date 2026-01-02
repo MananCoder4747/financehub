@@ -759,19 +759,27 @@ function getFilteredTransactions() {
 
 // Update balance
 function updateBalance() {
-    const regularTransactions = transactions.filter(t => t.type === 'regular');
-    const total = regularTransactions.reduce((acc, t) => acc + t.amount, 0);
+    // Calculate net balance: Money to receive (lent) - Money to pay (borrowed)
+    const lendTransactions = transactions.filter(t => t.type === 'lend' && !t.settled);
+    const borrowTransactions = transactions.filter(t => t.type === 'borrow' && !t.settled);
     
-    const formattedBalance = formatMoney(total);
-    const balanceColor = total >= 0 ? '#10b981' : '#ef4444';
+    const totalLent = lendTransactions.reduce((acc, t) => acc + t.amount, 0);
+    const totalBorrowed = borrowTransactions.reduce((acc, t) => acc + t.amount, 0);
     
-    balanceEl.textContent = formattedBalance;
+    // Net balance: positive means others owe you, negative means you owe others
+    const netBalance = totalLent - totalBorrowed;
+    
+    const formattedBalance = formatMoney(Math.abs(netBalance));
+    const balanceColor = netBalance >= 0 ? '#10b981' : '#ef4444';
+    const prefix = netBalance >= 0 ? '+' : '-';
+    
+    balanceEl.textContent = (netBalance !== 0 ? prefix : '') + formattedBalance;
     balanceEl.style.color = balanceColor;
     
     // Update mobile balance too
     if (mobileBalanceValue) {
-        mobileBalanceValue.textContent = formattedBalance;
-        mobileBalanceValue.style.color = total >= 0 ? '#10b981' : '#ef4444';
+        mobileBalanceValue.textContent = (netBalance !== 0 ? prefix : '') + formattedBalance;
+        mobileBalanceValue.style.color = balanceColor;
     }
 }
 
