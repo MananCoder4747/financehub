@@ -29,11 +29,17 @@ const clearAllBtn = document.getElementById('clear-all');
 
 // Borrow/Lend elements
 const transactionTypeInput = document.getElementById('transaction-type');
-const personInput = document.getElementById('person');
+const personSelect = document.getElementById('person');
 const personEmailInput = document.getElementById('person-email');
 const dueDateInput = document.getElementById('due-date');
 const reminderInput = document.getElementById('reminder');
 const typeBtns = document.querySelectorAll('.type-btn');
+const addPersonBtn = document.getElementById('add-person-btn');
+
+// Add Person Form elements
+const addPersonForm = document.getElementById('add-person-form');
+const newPersonNameInput = document.getElementById('new-person-name');
+const newPersonEmailInput = document.getElementById('new-person-email');
 
 // Summary elements
 const totalLentEl = document.getElementById('total-lent');
@@ -89,16 +95,328 @@ const avatarColors = [
 // Initialize transactions from localStorage
 let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
 
+// Saved people list
+let savedPeople = JSON.parse(localStorage.getItem('savedPeople')) || [];
+
 // Shared transactions from Firebase
 let sharedTransactions = [];
 
-// Set default date to today
-dateInput.valueAsDate = new Date();
+// Reminder date input
+const reminderDateField = document.getElementById('reminder-date-field');
+const reminderDateInput = document.getElementById('reminder-date');
+
+// Export buttons
+const exportExcelBtn = document.getElementById('export-excel');
+const exportPdfBtn = document.getElementById('export-pdf');
+
+// ========================================
+// Date Format Helpers (DD/MM/YYYY)
+// ========================================
+
+// Format date to DD/MM/YYYY
+function formatDateToDDMMYYYY(date) {
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+}
+
+// Parse DD/MM/YYYY to ISO format (YYYY-MM-DD)
+function parseDDMMYYYY(dateStr) {
+    if (!dateStr) return null;
+    const parts = dateStr.split('/');
+    if (parts.length !== 3) return null;
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[2], 10);
+    if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
+    return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+// Convert ISO to DD/MM/YYYY
+function isoToDDMMYYYY(isoStr) {
+    if (!isoStr) return '';
+    const parts = isoStr.split('-');
+    if (parts.length !== 3) return isoStr;
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+// Auto-format date input as user types
+function setupDateInput(input) {
+    if (!input) return;
+    input.addEventListener('input', (e) => {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length >= 2) {
+            value = value.slice(0, 2) + '/' + value.slice(2);
+        }
+        if (value.length >= 5) {
+            value = value.slice(0, 5) + '/' + value.slice(5, 9);
+        }
+        e.target.value = value;
+    });
+}
+
+// Set today's date in DD/MM/YYYY format
+function setTodayDate() {
+    if (dateInput) dateInput.value = formatDateToDDMMYYYY(new Date());
+}
+
+// Setup all date inputs with auto-formatting
+function setupDateInputs() {
+    setupDateInput(dateInput);
+    setupDateInput(dueDateInput);
+    setupDateInput(reminderDateInput);
+}
+
+// Setup reminder toggle for custom date
+function setupReminderToggle() {
+    if (!reminderInput || !reminderDateField) return;
+    
+    reminderInput.addEventListener('change', () => {
+        if (reminderInput.value === 'custom') {
+            reminderDateField.style.display = 'block';
+        } else {
+            reminderDateField.style.display = 'none';
+            if (reminderDateInput) reminderDateInput.value = '';
+        }
+    });
+}
+
+// Setup export buttons
+function setupExportButtons() {
+    if (exportExcelBtn) {
+        exportExcelBtn.addEventListener('click', exportToExcel);
+    }
+    if (exportPdfBtn) {
+        exportPdfBtn.addEventListener('click', exportToPDF);
+    }
+}
+
+// Export transactions to Excel (CSV)
+function exportToExcel() {
+    const allTransactions = [...transactions, ...sharedTransactions];
+    if (allTransactions.length === 0) {
+        alert('No transactions to export!');
+        return;
+    }
+    
+    // CSV headers
+    let csv = 'Date,Description,Type,Category,Amount,Person,Person Email,Due Date,Status\n';
+    
+    // Add each transaction
+    allTransactions.forEach(t => {
+        const date = isoToDDMMYYYY(t.date) || '';
+        const description = `"${(t.description || '').replace(/"/g, '""')}"`;
+        const type = t.type || '';
+        const category = t.category || '';
+        const amount = t.amount || 0;
+        const person = `"${(t.person || '').replace(/"/g, '""')}"`;
+        const personEmail = `"${(t.personEmail || '').replace(/"/g, '""')}"`;
+        const dueDate = isoToDDMMYYYY(t.dueDate) || '';
+        const status = t.settled ? 'Settled' : 'Pending';
+        
+        csv += `${date},${description},${type},${category},${amount},${person},${personEmail},${dueDate},${status}\n`;
+    });
+    
+    // Create and download file
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `transactions_${formatDateToDDMMYYYY(new Date()).replace(/\//g, '-')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Export transactions to PDF
+function exportToPDF() {
+    const allTransactions = [...transactions, ...sharedTransactions];
+    if (allTransactions.length === 0) {
+        alert('No transactions to export!');
+        return;
+    }
+    
+    // Create printable HTML
+    let html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Transactions Report</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                h1 { color: #6366f1; text-align: center; }
+                .date { text-align: center; color: #666; margin-bottom: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 12px; }
+                th { background: #6366f1; color: white; }
+                tr:nth-child(even) { background: #f9f9f9; }
+                .income { color: #10b981; }
+                .expense { color: #ef4444; }
+                .lend { color: #3b82f6; }
+                .borrow { color: #f59e0b; }
+                .summary { margin-top: 20px; padding: 15px; background: #f0f0f0; border-radius: 8px; }
+            </style>
+        </head>
+        <body>
+            <h1>💰 Finance Manager Pro - Transactions Report</h1>
+            <p class="date">Generated on: ${formatDateToDDMMYYYY(new Date())}</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Type</th>
+                        <th>Category</th>
+                        <th>Amount</th>
+                        <th>Person</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    let totalIncome = 0, totalExpense = 0, totalLent = 0, totalBorrowed = 0;
+    
+    allTransactions.forEach(t => {
+        const typeClass = t.type || 'other';
+        const date = isoToDDMMYYYY(t.date) || '-';
+        const dueDate = isoToDDMMYYYY(t.dueDate) || '-';
+        const status = t.settled ? '✓ Settled' : '⏳ Pending';
+        
+        // Calculate totals
+        if (t.type === 'income') totalIncome += t.amount;
+        else if (t.type === 'expense') totalExpense += t.amount;
+        else if (t.type === 'lend') totalLent += t.amount;
+        else if (t.type === 'borrow') totalBorrowed += t.amount;
+        
+        html += `
+            <tr>
+                <td>${date}</td>
+                <td>${t.description || '-'}</td>
+                <td class="${typeClass}">${(t.type || '-').toUpperCase()}</td>
+                <td>${t.category || '-'}</td>
+                <td class="${typeClass}">₹${t.amount.toLocaleString('en-IN')}</td>
+                <td>${t.person || '-'}</td>
+                <td>${dueDate}</td>
+                <td>${status}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+            <div class="summary">
+                <h3>Summary</h3>
+                <p><strong>Total Income:</strong> <span class="income">₹${totalIncome.toLocaleString('en-IN')}</span></p>
+                <p><strong>Total Expense:</strong> <span class="expense">₹${totalExpense.toLocaleString('en-IN')}</span></p>
+                <p><strong>Total Lent:</strong> <span class="lend">₹${totalLent.toLocaleString('en-IN')}</span></p>
+                <p><strong>Total Borrowed:</strong> <span class="borrow">₹${totalBorrowed.toLocaleString('en-IN')}</span></p>
+                <p><strong>Net Balance:</strong> ₹${(totalIncome - totalExpense + totalBorrowed - totalLent).toLocaleString('en-IN')}</p>
+            </div>
+        </body>
+        </html>
+    `;
+    
+    // Open print dialog
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+        printWindow.print();
+    }, 250);
+}
 
 // Display current date
 function updateCurrentDate() {
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     currentDateEl.textContent = new Date().toLocaleDateString('en-IN', options);
+}
+
+// ========================================
+// Saved People Management
+// ========================================
+
+function savePeopleToStorage() {
+    localStorage.setItem('savedPeople', JSON.stringify(savedPeople));
+    if (currentUser && isFirebaseConfigured()) {
+        savePeopleToFirebase();
+    }
+}
+
+async function savePeopleToFirebase() {
+    if (!currentUser) return;
+    try {
+        await db.collection('users').doc(currentUser.uid).set({
+            savedPeople: savedPeople
+        }, { merge: true });
+    } catch (error) {
+        console.error('Error saving people to Firebase:', error);
+    }
+}
+
+async function loadPeopleFromFirebase() {
+    if (!currentUser) return;
+    try {
+        const doc = await db.collection('users').doc(currentUser.uid).get();
+        if (doc.exists && doc.data().savedPeople) {
+            savedPeople = doc.data().savedPeople;
+            localStorage.setItem('savedPeople', JSON.stringify(savedPeople));
+        }
+    } catch (error) {
+        console.error('Error loading people from Firebase:', error);
+    }
+}
+
+function addPerson(name, email = '') {
+    const exists = savedPeople.find(p => p.name.toLowerCase() === name.toLowerCase());
+    if (exists) {
+        alert('This person already exists!');
+        return false;
+    }
+    
+    const person = {
+        id: Date.now().toString(),
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        createdAt: new Date().toISOString()
+    };
+    
+    savedPeople.push(person);
+    savePeopleToStorage();
+    updatePersonSelect();
+    renderPeopleList();
+    return true;
+}
+
+function deletePerson(personId) {
+    if (!confirm('Delete this person?')) return;
+    savedPeople = savedPeople.filter(p => p.id !== personId);
+    savePeopleToStorage();
+    updatePersonSelect();
+    renderPeopleList();
+}
+
+function updatePersonSelect() {
+    const currentValue = personSelect.value;
+    personSelect.innerHTML = '<option value="">-- Select a person --</option>';
+    
+    savedPeople.forEach(person => {
+        const option = document.createElement('option');
+        option.value = person.name;
+        option.dataset.email = person.email || '';
+        option.textContent = person.name + (person.email ? ` (${person.email})` : '');
+        personSelect.appendChild(option);
+    });
+    
+    if (currentValue && savedPeople.find(p => p.name === currentValue)) {
+        personSelect.value = currentValue;
+    }
 }
 
 // ========================================
@@ -154,8 +472,9 @@ function initAuth() {
             userName.textContent = user.displayName || 'User';
             userEmail.textContent = user.email;
             
-            // Load transactions from Firebase
+            // Load data from Firebase
             await loadTransactionsFromFirebase();
+            await loadPeopleFromFirebase();
             await loadSharedTransactions();
             
             init();
@@ -282,6 +601,11 @@ document.addEventListener('DOMContentLoaded', initAuth);
 // Initialize app
 function init() {
     updateCurrentDate();
+    updatePersonSelect();
+    setupDateInputs();
+    setTodayDate();
+    setupReminderToggle();
+    setupExportButtons();
     updateUI();
     checkReminders();
     setupTypeToggle();
@@ -481,7 +805,16 @@ function checkReminders() {
         dueDate.setHours(0, 0, 0, 0);
         const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
         
-        const reminderDays = parseInt(t.reminder) || 0;
+        // Handle custom reminder date
+        let shouldRemind = false;
+        if (t.reminder === 'custom' && t.customReminderDate) {
+            const reminderDate = new Date(t.customReminderDate);
+            reminderDate.setHours(0, 0, 0, 0);
+            shouldRemind = today >= reminderDate;
+        } else {
+            const reminderDays = parseInt(t.reminder) || 0;
+            shouldRemind = reminderDays > 0 && daysUntilDue <= reminderDays;
+        }
         
         if (daysUntilDue < 0) {
             reminders.push({
@@ -497,7 +830,7 @@ function checkReminders() {
                 type: 'danger',
                 message: 'Due today!'
             });
-        } else if (reminderDays > 0 && daysUntilDue <= reminderDays) {
+        } else if (shouldRemind) {
             reminders.push({
                 transaction: t,
                 daysUntilDue,
@@ -599,33 +932,57 @@ function getPeopleWithBalances() {
     return Object.values(people);
 }
 
-// Render people list
+// Render people list (combines saved people with transaction people)
 function renderPeopleList() {
-    const people = getPeopleWithBalances();
+    const transactionPeople = getPeopleWithBalances();
     
-    if (people.length === 0) {
+    // Merge saved people with transaction-based people
+    const allPeople = [...savedPeople];
+    
+    // Add people from transactions who aren't in saved list
+    transactionPeople.forEach(tp => {
+        const exists = allPeople.find(p => p.name.toLowerCase() === tp.name.toLowerCase());
+        if (!exists) {
+            allPeople.push({
+                id: tp.name.toLowerCase(),
+                name: tp.name,
+                email: tp.email || '',
+                fromTransactions: true
+            });
+        }
+    });
+    
+    if (allPeople.length === 0) {
         peopleListEl.innerHTML = `
             <div class="people-empty">
                 <span class="material-symbols-outlined">group_off</span>
-                <p>No lending or borrowing records yet</p>
+                <p>No people added yet. Add someone above to get started!</p>
             </div>
         `;
         return;
     }
     
-    peopleListEl.innerHTML = people.map((person, index) => `
-        <div class="person-card ${person.hasShared ? 'shared' : ''}" onclick="openPersonModal('${escapeHtml(person.name)}')">
-            ${person.hasShared ? '<span class="shared-badge"><span class="material-symbols-outlined">link</span></span>' : ''}
+    peopleListEl.innerHTML = allPeople.map((person, index) => {
+        const txPerson = transactionPeople.find(tp => tp.name.toLowerCase() === person.name.toLowerCase());
+        const balance = txPerson ? txPerson.balance : 0;
+        const hasShared = txPerson ? txPerson.hasShared : false;
+        
+        return `
+        <div class="person-card ${hasShared ? 'shared' : ''}" onclick="openPersonModal('${escapeHtml(person.name)}')">
+            ${hasShared ? '<span class="shared-badge"><span class="material-symbols-outlined">link</span></span>' : ''}
+            ${!person.fromTransactions ? `<button class="delete-person-btn" onclick="event.stopPropagation(); deletePerson('${person.id}')" title="Delete Person">
+                <span class="material-symbols-outlined">close</span>
+            </button>` : ''}
             <div class="person-avatar" style="background: linear-gradient(135deg, ${avatarColors[index % avatarColors.length]} 0%, ${avatarColors[(index + 1) % avatarColors.length]} 100%);">
                 ${person.name.charAt(0).toUpperCase()}
             </div>
             <span class="name">${escapeHtml(person.name)}</span>
-            ${person.email ? `<span class="person-email-badge">${escapeHtml(person.email)}</span>` : ''}
-            <span class="balance ${person.balance >= 0 ? 'positive' : 'negative'}">
-                ${person.balance >= 0 ? '+' : ''}${formatMoney(person.balance)}
+            ${person.email ? `<span class="person-email-display">${escapeHtml(person.email)}</span>` : ''}
+            <span class="balance ${balance >= 0 ? 'positive' : 'negative'}">
+                ${balance >= 0 ? '+' : ''}${formatMoney(balance)}
             </span>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 // Open person modal
@@ -706,10 +1063,10 @@ function formatMoney(amount) {
     return '₹' + formatted;
 }
 
-// Format date
+// Format date for display (DD/MM/YYYY)
 function formatDate(dateString) {
-    const options = { month: 'short', day: 'numeric', year: 'numeric' };
-    return new Date(dateString).toLocaleDateString('en-IN', options);
+    if (!dateString) return '-';
+    return isoToDDMMYYYY(dateString);
 }
 
 // Render single transaction item
@@ -806,36 +1163,50 @@ async function addTransaction(e) {
     const type = transactionTypeInput.value;
     const description = descriptionInput.value.trim();
     const amount = Math.abs(parseFloat(amountInput.value));
-    const date = dateInput.value;
+    const dateValue = dateInput.value;
+    const date = parseDDMMYYYY(dateValue);
 
     if (!description || isNaN(amount) || !date) {
-        alert('Please fill in all required fields');
+        alert('Please fill in all required fields (use DD/MM/YYYY format for dates)');
         return;
+    }
+
+    // Get person from select dropdown
+    const personName = personSelect.value;
+    if (!personName) {
+        alert('Please select a person');
+        return;
+    }
+    
+    // Find the selected person to get their email
+    const selectedPerson = savedPeople.find(p => p.name === personName);
+    const personEmail = selectedPerson ? selectedPerson.email : '';
+
+    // Parse due date
+    const dueDateValue = dueDateInput.value;
+    const dueDate = dueDateValue ? parseDDMMYYYY(dueDateValue) : null;
+
+    // Handle reminder date for custom option
+    let reminderValue = reminderInput.value;
+    let customReminderDate = null;
+    if (reminderValue === 'custom' && reminderDateInput && reminderDateInput.value) {
+        customReminderDate = parseDDMMYYYY(reminderDateInput.value);
     }
 
     const transaction = {
         id: generateId(),
         type,
         description,
-        date
+        date,
+        amount,
+        person: personName,
+        personEmail: personEmail || null,
+        category: type,
+        dueDate: dueDate,
+        reminder: reminderValue,
+        customReminderDate: customReminderDate,
+        settled: false
     };
-
-    // All transactions are now lend/borrow type
-    const person = personInput.value.trim();
-    if (!person) {
-        alert('Please enter the person\'s name');
-        return;
-    }
-    
-    const personEmail = personEmailInput.value.trim().toLowerCase();
-    
-    transaction.amount = amount;
-    transaction.person = person;
-    transaction.personEmail = personEmail || null;
-    transaction.category = type;
-    transaction.dueDate = dueDateInput.value || null;
-    transaction.reminder = reminderInput.value;
-    transaction.settled = false;
 
     transactions.push(transaction);
     saveToLocalStorage();
@@ -846,11 +1217,12 @@ async function addTransaction(e) {
     // Reset form
     descriptionInput.value = '';
     amountInput.value = '';
-    personInput.value = '';
-    personEmailInput.value = '';
+    personSelect.value = '';
     dueDateInput.value = '';
     reminderInput.value = 'none';
-    dateInput.valueAsDate = new Date();
+    if (reminderDateField) reminderDateField.style.display = 'none';
+    if (reminderDateInput) reminderDateInput.value = '';
+    setTodayDate();
     descriptionInput.focus();
     
     // Show success feedback
@@ -936,6 +1308,43 @@ document.addEventListener('keydown', (e) => {
         closePersonModal();
     }
 });
+
+// Add Person Form submit
+if (addPersonForm) {
+    addPersonForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = newPersonNameInput.value.trim();
+        const email = newPersonEmailInput.value.trim();
+        
+        if (!name) {
+            alert('Please enter a name');
+            return;
+        }
+        
+        if (addPerson(name, email)) {
+            newPersonNameInput.value = '';
+            newPersonEmailInput.value = '';
+            showNotification('Person added!');
+        }
+    });
+}
+
+// Add Person button in Quick Add form (navigate to People section)
+if (addPersonBtn) {
+    addPersonBtn.addEventListener('click', () => {
+        navItems.forEach(item => {
+            item.classList.toggle('active', item.dataset.section === 'people');
+        });
+        contentSections.forEach(section => {
+            section.classList.toggle('active', section.id === 'people-section');
+        });
+        pageTitle.textContent = 'People';
+        
+        setTimeout(() => {
+            if (newPersonNameInput) newPersonNameInput.focus();
+        }, 100);
+    });
+}
 
 // Event Listeners
 form.addEventListener('submit', addTransaction);

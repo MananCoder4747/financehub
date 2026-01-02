@@ -213,25 +213,18 @@
                                 </div>
                                 <input type="hidden" id="transaction-type" value="lend">
 
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="description">Description</label>
-                                        <input type="text" id="description" placeholder="What's this for?" required>
-                                    </div>
-                                </div>
-
                                 <div class="form-row person-field">
                                     <div class="form-group">
-                                        <label for="person">Person Name</label>
-                                        <input type="text" id="person" placeholder="Name of the person" required>
-                                    </div>
-                                </div>
-
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="person-email">Person's Email (optional)</label>
-                                        <input type="email" id="person-email" placeholder="email@example.com">
-                                        <small class="email-hint">If they use FinanceHub, they'll see this transaction too</small>
+                                        <label for="person">Select Person</label>
+                                        <div class="person-select-wrapper">
+                                            <select id="person" required>
+                                                <option value="">-- Select a person --</option>
+                                            </select>
+                                            <button type="button" id="add-person-btn" class="add-person-btn" title="Add New Person">
+                                                <span class="material-symbols-outlined">person_add</span>
+                                            </button>
+                                        </div>
+                                        <input type="hidden" id="person-email">
                                     </div>
                                 </div>
 
@@ -242,14 +235,21 @@
                                     </div>
                                 </div>
 
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="description">Description</label>
+                                        <input type="text" id="description" placeholder="What's this for?" required>
+                                    </div>
+                                </div>
+
                                 <div class="form-row two-col">
                                     <div class="form-group">
-                                        <label for="date">Date</label>
-                                        <input type="date" id="date" required>
+                                        <label for="date">Date (DD/MM/YYYY)</label>
+                                        <input type="text" id="date" placeholder="DD/MM/YYYY" maxlength="10" required>
                                     </div>
                                     <div class="form-group due-date-field">
-                                        <label for="due-date">Due Date</label>
-                                        <input type="date" id="due-date">
+                                        <label for="due-date">Due Date (DD/MM/YYYY)</label>
+                                        <input type="text" id="due-date" placeholder="DD/MM/YYYY" maxlength="10">
                                     </div>
                                 </div>
 
@@ -260,8 +260,13 @@
                                             <option value="none">No reminder</option>
                                             <option value="1">1 day before</option>
                                             <option value="3">3 days before</option>
-                                            <option value="7">1 week before</option>
+                                            <option value="7">7 days before</option>
+                                            <option value="custom">Select date...</option>
                                         </select>
+                                    </div>
+                                    <div class="form-group reminder-date-field" id="reminder-date-field" style="display: none;">
+                                        <label for="reminder-date">Reminder Date</label>
+                                        <input type="text" id="reminder-date" placeholder="DD/MM/YYYY" maxlength="10">
                                     </div>
                                 </div>
 
@@ -318,6 +323,16 @@
                             </button>
                         </div>
                     </div>
+                    <div class="export-buttons">
+                        <button id="export-excel" class="btn-export btn-excel">
+                            <span class="material-symbols-outlined">table_view</span>
+                            Export Excel
+                        </button>
+                        <button id="export-pdf" class="btn-export btn-pdf">
+                            <span class="material-symbols-outlined">picture_as_pdf</span>
+                            Export PDF
+                        </button>
+                    </div>
                     <div class="panel-body">
                         <ul id="transaction-list" class="transactions-list">
                         </ul>
@@ -327,9 +342,36 @@
 
             <!-- People Section -->
             <section id="people-section" class="content-section">
+                <!-- Add New Person Panel -->
+                <div class="panel add-person-panel">
+                    <div class="panel-header">
+                        <h2><span class="material-symbols-outlined">person_add</span> Add New Person</h2>
+                    </div>
+                    <div class="panel-body">
+                        <form id="add-person-form" class="add-person-form">
+                            <div class="form-row two-col">
+                                <div class="form-group">
+                                    <label for="new-person-name">Name *</label>
+                                    <input type="text" id="new-person-name" placeholder="Enter person's name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="new-person-email">Email (for sharing)</label>
+                                    <input type="email" id="new-person-email" placeholder="email@example.com">
+                                </div>
+                            </div>
+                            <small class="email-hint">If they use FinanceHub with this email, both of you can see shared transactions</small>
+                            <button type="submit" class="btn-add-person">
+                                <span class="material-symbols-outlined">add</span>
+                                Add Person
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Saved People List -->
                 <div class="panel full-panel">
                     <div class="panel-header">
-                        <h2><span class="material-symbols-outlined">group</span> People</h2>
+                        <h2><span class="material-symbols-outlined">group</span> Saved People</h2>
                     </div>
                     <div class="panel-body">
                         <div id="people-list" class="people-grid">

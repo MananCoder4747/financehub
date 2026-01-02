@@ -1,0 +1,8 @@
+{
+  "appId": "com.manan4747.financehub",
+  "appName": "FinanceHub",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
