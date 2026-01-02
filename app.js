@@ -1226,7 +1226,7 @@ function renderDetailsList(people, amountClass) {
     }
     
     detailsTransactionsList.innerHTML = peopleArray.map((person, index) => `
-        <li class="details-person-item" onclick="openPersonModal('${escapeHtml(person.name)}')">
+        <li class="details-person-item" onclick="closeDetailsModal(); openPersonModal('${escapeHtml(person.name)}')">
             <div class="details-person-info">
                 <div class="details-person-avatar" style="background: linear-gradient(135deg, ${avatarColors[index % avatarColors.length]} 0%, ${avatarColors[(index + 1) % avatarColors.length]} 100%);">
                     ${person.name.charAt(0).toUpperCase()}
@@ -1256,7 +1256,7 @@ function renderPendingList(people) {
     }
     
     detailsTransactionsList.innerHTML = peopleArray.map((person, index) => `
-        <li class="details-person-item" onclick="openPersonModal('${escapeHtml(person.name)}')">
+        <li class="details-person-item" onclick="closeDetailsModal(); openPersonModal('${escapeHtml(person.name)}')">
             <div class="details-person-info">
                 <div class="details-person-avatar" style="background: linear-gradient(135deg, ${avatarColors[index % avatarColors.length]} 0%, ${avatarColors[(index + 1) % avatarColors.length]} 100%);">
                     ${person.name.charAt(0).toUpperCase()}
