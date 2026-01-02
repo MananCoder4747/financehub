@@ -531,10 +531,11 @@ async function loadTransactionsFromFirebase() {
 
 // Load shared transactions (where current user is the person)
 async function loadSharedTransactions() {
-    if (!currentUser) return;
+    if (!currentUser || !isFirebaseConfigured()) return;
     
     try {
-        const snapshot = await db.collectionGroup('transactions')
+        // Query the sharedTransactions collection where this user's email is the personEmail
+        const snapshot = await db.collection('sharedTransactions')
             .where('personEmail', '==', currentUser.email.toLowerCase())
             .get();
         
@@ -543,6 +544,8 @@ async function loadSharedTransactions() {
             ...doc.data(),
             isShared: true
         }));
+        
+        console.log('Loaded shared transactions:', sharedTransactions.length);
     } catch (error) {
         console.error('Error loading shared transactions:', error);
         sharedTransactions = [];
@@ -554,12 +557,22 @@ async function saveTransactionToFirebase(transaction) {
     if (!currentUser || !isFirebaseConfigured()) return;
     
     try {
-        await db.collection('users').doc(currentUser.uid).collection('transactions').doc(transaction.id).set({
+        const transactionData = {
             ...transaction,
             ownerEmail: currentUser.email.toLowerCase(),
             ownerName: currentUser.displayName,
+            ownerUid: currentUser.uid,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        };
+        
+        // Save to user's transactions
+        await db.collection('users').doc(currentUser.uid).collection('transactions').doc(transaction.id).set(transactionData);
+        
+        // If person has email, also save to shared transactions collection
+        if (transaction.personEmail) {
+            await db.collection('sharedTransactions').doc(transaction.id).set(transactionData);
+            console.log('Shared transaction saved for:', transaction.personEmail);
+        }
     } catch (error) {
         console.error('Error saving transaction:', error);
     }
@@ -570,7 +583,11 @@ async function deleteTransactionFromFirebase(transactionId) {
     if (!currentUser || !isFirebaseConfigured()) return;
     
     try {
+        // Delete from user's transactions
         await db.collection('users').doc(currentUser.uid).collection('transactions').doc(transactionId).delete();
+        
+        // Also delete from shared transactions
+        await db.collection('sharedTransactions').doc(transactionId).delete();
     } catch (error) {
         console.error('Error deleting transaction:', error);
     }
@@ -581,7 +598,21 @@ async function updateTransactionInFirebase(transaction) {
     if (!currentUser || !isFirebaseConfigured()) return;
     
     try {
-        await db.collection('users').doc(currentUser.uid).collection('transactions').doc(transaction.id).update(transaction);
+        const transactionData = {
+            ...transaction,
+            ownerEmail: currentUser.email.toLowerCase(),
+            ownerName: currentUser.displayName,
+            ownerUid: currentUser.uid,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        // Update in user's transactions
+        await db.collection('users').doc(currentUser.uid).collection('transactions').doc(transaction.id).set(transactionData, { merge: true });
+        
+        // Update in shared transactions if person has email
+        if (transaction.personEmail) {
+            await db.collection('sharedTransactions').doc(transaction.id).set(transactionData, { merge: true });
+        }
     } catch (error) {
         console.error('Error updating transaction:', error);
     }
@@ -1189,9 +1220,9 @@ async function addTransaction(e) {
         return;
     }
     
-    // Find the selected person to get their email
+    // Find the selected person to get their email (store in lowercase for sharing)
     const selectedPerson = savedPeople.find(p => p.name === personName);
-    const personEmail = selectedPerson ? selectedPerson.email : '';
+    const personEmail = selectedPerson && selectedPerson.email ? selectedPerson.email.toLowerCase() : null;
 
     // Parse due date
     const dueDateValue = dueDateInput.value;
@@ -1373,19 +1404,6 @@ if (editForm) {
         // Show confirmation
         showToast('Transaction updated successfully!');
     });
-}
-
-// Update transaction in Firebase
-async function updateTransactionInFirebase(transaction) {
-    if (!currentUser || !isFirebaseConfigured()) return;
-    
-    try {
-        await db.collection('users').doc(currentUser.uid)
-            .collection('transactions').doc(transaction.id)
-            .set(transaction);
-    } catch (error) {
-        console.error('Error updating transaction in Firebase:', error);
-    }
 }
 
 // Show toast notification
