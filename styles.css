@@ -1189,6 +1189,17 @@ input, textarea, [contenteditable="true"] {
     color: var(--secondary);
 }
 
+.badge-shared {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+}
+
+.shared-view-only {
+    font-size: 1.2rem;
+    opacity: 0.6;
+    padding: 8px;
+}
+
 .transaction-due {
     font-size: 0.8rem;
     color: var(--warning);

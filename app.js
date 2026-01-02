@@ -770,9 +770,10 @@ function updateStats() {
     totalPendingEl.textContent = pending;
 }
 
-// Get filtered transactions
+// Get filtered transactions (includes shared)
 function getFilteredTransactions() {
-    let filtered = transactions;
+    // Combine own and shared transactions
+    let filtered = [...transactions, ...sharedTransactions];
     
     const typeFilter = filterType.value;
     const categoryFilter = filterCategory.value;
@@ -1133,23 +1134,42 @@ function formatDate(dateString) {
 
 // Render single transaction item
 function renderTransactionItem(transaction, showPerson = false) {
+    const isShared = transaction.isShared === true;
     const isIncome = transaction.type === 'regular' ? transaction.amount > 0 : transaction.type === 'lend';
     
     let badgeHtml = '';
     if (transaction.type === 'lend') {
-        badgeHtml = `<span class="transaction-badge badge-lend">LENT${showPerson ? '' : ' to ' + escapeHtml(transaction.person)}</span>`;
+        // For shared transactions, reverse the label (their lend = my borrow)
+        if (isShared) {
+            badgeHtml = `<span class="transaction-badge badge-borrow">BORROWED from ${escapeHtml(transaction.ownerName || 'Unknown')}</span>`;
+        } else {
+            badgeHtml = `<span class="transaction-badge badge-lend">LENT${showPerson ? '' : ' to ' + escapeHtml(transaction.person)}</span>`;
+        }
     } else if (transaction.type === 'borrow') {
-        badgeHtml = `<span class="transaction-badge badge-borrow">BORROWED${showPerson ? '' : ' from ' + escapeHtml(transaction.person)}</span>`;
+        // For shared transactions, reverse the label (their borrow = my lend)
+        if (isShared) {
+            badgeHtml = `<span class="transaction-badge badge-lend">LENT to ${escapeHtml(transaction.ownerName || 'Unknown')}</span>`;
+        } else {
+            badgeHtml = `<span class="transaction-badge badge-borrow">BORROWED${showPerson ? '' : ' from ' + escapeHtml(transaction.person)}</span>`;
+        }
     }
     
     if (transaction.settled) {
         badgeHtml += '<span class="transaction-badge badge-settled">SETTLED</span>';
     }
     
+    // Add shared indicator
+    if (isShared) {
+        badgeHtml += '<span class="transaction-badge badge-shared">SHARED</span>';
+    }
+    
     const category = transaction.type === 'regular' ? transaction.category : transaction.type;
     
+    // For shared transactions, reverse the income/expense display
+    const displayAsIncome = isShared ? !isIncome : isIncome;
+    
     return `
-        <li class="transaction-item ${isIncome ? 'income' : 'expense'}">
+        <li class="transaction-item ${displayAsIncome ? 'income' : 'expense'}">
             <div class="transaction-icon">${categoryIcons[category]}</div>
             <div class="transaction-info">
                 <div class="description">${escapeHtml(transaction.description)} ${badgeHtml}</div>
@@ -1163,9 +1183,10 @@ function renderTransactionItem(transaction, showPerson = false) {
                     </div>
                 ` : ''}
             </div>
-            <span class="transaction-amount ${isIncome ? 'income' : 'expense'}">
-                ${isIncome ? '+' : '-'}${formatMoney(transaction.amount)}
+            <span class="transaction-amount ${displayAsIncome ? 'income' : 'expense'}">
+                ${displayAsIncome ? '+' : '-'}${formatMoney(transaction.amount)}
             </span>
+            ${!isShared ? `
             <div class="transaction-actions">
                 <button class="edit-btn" onclick="openEditModal('${transaction.id}')" title="Edit">
                     <span class="material-symbols-outlined">edit</span>
@@ -1179,13 +1200,20 @@ function renderTransactionItem(transaction, showPerson = false) {
                     <span class="material-symbols-outlined">delete</span>
                 </button>
             </div>
+            ` : `
+            <div class="transaction-actions">
+                <span class="shared-view-only" title="Shared transaction - view only">👁️</span>
+            </div>
+            `}
         </li>
     `;
 }
 
 // Render recent transactions (last 5)
 function renderRecentTransactions() {
-    const recent = [...transactions]
+    // Combine own and shared transactions for recent list
+    const allTransactions = [...transactions, ...sharedTransactions];
+    const recent = allTransactions
         .sort((a, b) => new Date(b.date) - new Date(a.date))
         .slice(0, 5);
     
