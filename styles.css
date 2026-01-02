@@ -1742,12 +1742,24 @@ input, textarea, [contenteditable="true"] {
     border-radius: 8px;
     cursor: pointer;
     transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.edit-btn .material-symbols-outlined {
+    font-size: 1.25rem;
 }
 
 .edit-btn:hover {
     background: var(--primary);
     color: white;
     transform: scale(1.05);
+}
+
+/* Make all action button icons same size */
+.transaction-actions .material-symbols-outlined {
+    font-size: 1.25rem !important;
 }
 
 /* Update confirmation toast */
