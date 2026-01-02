@@ -40,6 +40,19 @@ body {
     min-height: 100vh;
     color: var(--text-primary);
     overflow-x: hidden;
+    cursor: default;
+}
+
+/* Prevent text cursor on headings and labels */
+h1, h2, h3, h4, h5, h6, label, p, span, .panel-header, .stat-label, .stat-value {
+    cursor: default;
+    user-select: none;
+}
+
+/* Allow text selection only on input elements */
+input, textarea, [contenteditable="true"] {
+    cursor: text;
+    user-select: text;
 }
 
 /* ========================================
