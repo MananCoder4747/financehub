@@ -132,12 +132,69 @@ function parseDDMMYYYY(dateStr) {
     return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+// Convert various date-like values (string/Date/Firestore Timestamp/epoch) to a Date object
+function toDateObject(value) {
+    if (!value) return null;
+
+    if (value instanceof Date) {
+        return isNaN(value.getTime()) ? null : value;
+    }
+
+    if (typeof value === 'number') {
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? null : d;
+    }
+
+    if (typeof value === 'string') {
+        // DD/MM/YYYY
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+            const iso = parseDDMMYYYY(value);
+            if (!iso) return null;
+            const d = new Date(iso);
+            return isNaN(d.getTime()) ? null : d;
+        }
+
+        // ISO date or datetime
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? null : d;
+    }
+
+    if (typeof value === 'object') {
+        // Firestore Timestamp (has toDate())
+        if (typeof value.toDate === 'function') {
+            const d = value.toDate();
+            return d instanceof Date && !isNaN(d.getTime()) ? d : null;
+        }
+        // Firestore Timestamp-like (seconds)
+        if (typeof value.seconds === 'number') {
+            const d = new Date(value.seconds * 1000);
+            return isNaN(d.getTime()) ? null : d;
+        }
+        if (typeof value._seconds === 'number') {
+            const d = new Date(value._seconds * 1000);
+            return isNaN(d.getTime()) ? null : d;
+        }
+    }
+
+    return null;
+}
+
 // Convert ISO to DD/MM/YYYY
 function isoToDDMMYYYY(isoStr) {
     if (!isoStr) return '';
-    const parts = isoStr.split('-');
-    if (parts.length !== 3) return isoStr;
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+
+    if (typeof isoStr === 'string') {
+        // If it's an ISO datetime, just keep the date portion
+        const dateOnly = isoStr.includes('T') ? isoStr.split('T')[0] : isoStr;
+        const parts = dateOnly.split('-');
+        if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        // Already DD/MM/YYYY or other format
+        return isoStr;
+    }
+
+    const d = toDateObject(isoStr);
+    if (!d) return '';
+    return formatDateToDDMMYYYY(d);
 }
 
 // Auto-format date input as user types
@@ -1407,7 +1464,7 @@ function renderRecentTransactions() {
     // Combine own and shared transactions for recent list
     const allTransactions = [...transactions, ...sharedTransactions];
     const recent = allTransactions
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .sort((a, b) => (toDateObject(b.date)?.getTime() ?? 0) - (toDateObject(a.date)?.getTime() ?? 0))
         .slice(0, 5);
     
     if (recent.length === 0) {
@@ -1435,8 +1492,8 @@ function renderTransactions(transactionsToRender) {
         return;
     }
 
-    const sorted = [...transactionsToRender].sort((a, b) => 
-        new Date(b.date) - new Date(a.date)
+    const sorted = [...transactionsToRender].sort((a, b) =>
+        (toDateObject(b.date)?.getTime() ?? 0) - (toDateObject(a.date)?.getTime() ?? 0)
     );
 
     transactionList.innerHTML = sorted.map(t => renderTransactionItem(t)).join('');
