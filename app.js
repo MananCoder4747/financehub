@@ -914,14 +914,16 @@ function checkReminders() {
     const reminders = [];
     
     allTransactionsForReminders.forEach(t => {
-        const dueDate = new Date(t.dueDate);
+        const dueDate = toDateObject(t.dueDate);
+        if (!dueDate) return;
         dueDate.setHours(0, 0, 0, 0);
         const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
         
         // Handle custom reminder date
         let shouldRemind = false;
         if (t.reminder === 'custom' && t.customReminderDate) {
-            const reminderDate = new Date(t.customReminderDate);
+            const reminderDate = toDateObject(t.customReminderDate);
+            if (!reminderDate) return;
             reminderDate.setHours(0, 0, 0, 0);
             shouldRemind = today >= reminderDate;
         } else {
@@ -1122,7 +1124,7 @@ function openPersonModal(personName) {
     }
     
     personTransactionsList.innerHTML = person.transactions
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .sort((a, b) => (toDateObject(b.date)?.getTime() ?? 0) - (toDateObject(a.date)?.getTime() ?? 0))
         .map(t => {
             const item = renderTransactionItem(t, true);
             if (t.source === 'shared') {
@@ -1345,7 +1347,8 @@ if (detailsModal) {
 function isOverdue(dateString) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const dueDate = new Date(dateString);
+    const dueDate = toDateObject(dateString);
+    if (!dueDate) return false;
     return dueDate < today;
 }
 
