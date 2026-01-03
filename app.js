@@ -183,6 +183,15 @@ function toDateObject(value) {
     return null;
 }
 
+// Prefer latest activity time for sorting (updatedAt > createdAt > date)
+function getTransactionSortTime(transaction) {
+    return (
+        toDateObject(transaction?.updatedAt) ||
+        toDateObject(transaction?.createdAt) ||
+        toDateObject(transaction?.date)
+    );
+}
+
 // Convert ISO to DD/MM/YYYY
 function isoToDDMMYYYY(isoStr) {
     if (!isoStr) return '';
@@ -1194,7 +1203,7 @@ function openPersonModal(personName) {
     }
     
     personTransactionsList.innerHTML = person.transactions
-        .sort((a, b) => (toDateObject(b.date)?.getTime() ?? 0) - (toDateObject(a.date)?.getTime() ?? 0))
+        .sort((a, b) => (getTransactionSortTime(b)?.getTime() ?? 0) - (getTransactionSortTime(a)?.getTime() ?? 0))
         .map(t => {
             const item = renderTransactionItem(t, true);
             if (t.source === 'shared') {
@@ -1428,6 +1437,7 @@ async function settleTransaction(id) {
     if (transaction) {
         transaction.settled = true;
         transaction.settledDate = new Date().toISOString().split('T')[0];
+        transaction.updatedAt = new Date().toISOString();
         saveToLocalStorage();
         await updateTransactionInFirebase(transaction);
         updateUI();
@@ -1537,7 +1547,7 @@ function renderRecentTransactions() {
     // Combine own and shared transactions for recent list
     const allTransactions = [...transactions, ...sharedTransactions];
     const recent = allTransactions
-        .sort((a, b) => (toDateObject(b.date)?.getTime() ?? 0) - (toDateObject(a.date)?.getTime() ?? 0))
+        .sort((a, b) => (getTransactionSortTime(b)?.getTime() ?? 0) - (getTransactionSortTime(a)?.getTime() ?? 0))
         .slice(0, 5);
     
     if (recent.length === 0) {
@@ -1565,8 +1575,8 @@ function renderTransactions(transactionsToRender) {
         return;
     }
 
-    const sorted = [...transactionsToRender].sort((a, b) =>
-        (toDateObject(b.date)?.getTime() ?? 0) - (toDateObject(a.date)?.getTime() ?? 0)
+    const sorted = [...transactionsToRender].sort(
+        (a, b) => (getTransactionSortTime(b)?.getTime() ?? 0) - (getTransactionSortTime(a)?.getTime() ?? 0)
     );
 
     transactionList.innerHTML = sorted.map(t => renderTransactionItem(t)).join('');
@@ -1621,7 +1631,9 @@ async function addTransaction(e) {
         dueDate: dueDate,
         reminder: reminderValue,
         customReminderDate: customReminderDate,
-        settled: false
+        settled: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
     };
 
     transactions.push(transaction);
@@ -1761,7 +1773,8 @@ if (editForm) {
             category: editTypeInput.value,
             date: date,
             dueDate: dueDate,
-            settled: editSettledInput.value === 'true'
+            settled: editSettledInput.value === 'true',
+            updatedAt: new Date().toISOString()
         };
         
         transactions[transactionIndex] = updatedTransaction;
