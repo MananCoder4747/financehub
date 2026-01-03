@@ -5,6 +5,10 @@
 // Current user
 let currentUser = null;
 
+// Firestore realtime listeners (unsubscribe fns)
+let unsubscribeUserTransactions = null;
+let unsubscribeSharedTransactions = null;
+
 // Auth Elements
 const authScreen = document.getElementById('auth-screen');
 const appContainer = document.getElementById('app-container');
@@ -531,9 +535,13 @@ function initAuth() {
             await loadTransactionsFromFirebase();
             await loadPeopleFromFirebase();
             await loadSharedTransactions();
+
+            // Keep UI synced in realtime (cross-device updates)
+            startRealtimeListeners();
             
             init();
         } else {
+            stopRealtimeListeners();
             currentUser = null;
             authScreen.classList.remove('hidden');
             appContainer.style.display = 'none';
@@ -555,12 +563,74 @@ async function signInWithGoogle() {
 async function signOut() {
     try {
         await auth.signOut();
+        stopRealtimeListeners();
         transactions = [];
         sharedTransactions = [];
         localStorage.removeItem('transactions');
     } catch (error) {
         console.error('Sign out error:', error);
     }
+}
+
+function stopRealtimeListeners() {
+    if (unsubscribeUserTransactions) {
+        unsubscribeUserTransactions();
+        unsubscribeUserTransactions = null;
+    }
+    if (unsubscribeSharedTransactions) {
+        unsubscribeSharedTransactions();
+        unsubscribeSharedTransactions = null;
+    }
+}
+
+function startRealtimeListeners() {
+    stopRealtimeListeners();
+    if (!currentUser || !isFirebaseConfigured()) return;
+
+    unsubscribeUserTransactions = db
+        .collection('users')
+        .doc(currentUser.uid)
+        .collection('transactions')
+        .onSnapshot(
+            (snapshot) => {
+                if (!currentUser) return;
+                transactions = snapshot.docs.map((doc) => ({
+                    id: doc.id,
+                    ...doc.data(),
+                }));
+                saveToLocalStorage();
+                updateUI();
+                checkReminders();
+            },
+            (error) => {
+                console.error('Realtime user transactions listener error:', error);
+            }
+        );
+
+    const email = (currentUser.email || '').toLowerCase();
+    if (!email) {
+        sharedTransactions = [];
+        return;
+    }
+
+    unsubscribeSharedTransactions = db
+        .collection('sharedTransactions')
+        .where('personEmail', '==', email)
+        .onSnapshot(
+            (snapshot) => {
+                if (!currentUser) return;
+                sharedTransactions = snapshot.docs.map((doc) => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    isShared: true,
+                }));
+                updateUI();
+                checkReminders();
+            },
+            (error) => {
+                console.error('Realtime shared transactions listener error:', error);
+            }
+        );
 }
 
 // Load transactions from Firebase
