@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.manan4747.financehub"
-    compileSdk = rootProject.ext.compileSdkVersion
+    namespace "com.financehub.app"
+    compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.manan4747.financehub"
+        applicationId "com.financehub.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -13,22 +13,14 @@ android {
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
-            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
-        }
-    }
-    signingConfigs {
-        release {
-            storeFile file('../financehub-release-key.jks')
-            storePassword '11223344'
-            keyAlias 'financehub'
-            keyPassword '11223344'
+            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
     buildTypes {
         release {
+            signingConfig signingConfigs.debug
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
         }
     }
 }
@@ -55,8 +47,13 @@ apply from: 'capacitor.build.gradle'
 
 try {
     def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
-        apply plugin: 'com.google.gms.google-services'
+    if (servicesJSON.exists()) {
+        def content = servicesJSON.text
+        if (content != null && content.contains('"project_info"') && content.contains('"mobilesdk_app_id"')) {
+            apply plugin: 'com.google.gms.google-services'
+        } else {
+            logger.lifecycle("google-services.json present but incomplete; not applying google-services plugin")
+        }
     }
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")

@@ -1,8 +1,12 @@
 {
-  "appId": "com.manan4747.financehub",
+  "appId": "com.financehub.app",
   "appName": "FinanceHub",
-  "webDir": "www",
-  "server": {
-    "androidScheme": "https"
+  "webDir": "dist",
+  "plugins": {
+    "FirebaseAuthentication": {
+      "authDomain": "financehub-9c785.firebaseapp.com",
+      "skipNativeAuth": false,
+      "providers": ["google.com"]
+    }
   }
 }
